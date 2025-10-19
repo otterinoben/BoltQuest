@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Backups
+.backups/
+backups/
+
+# Local testing scripts output
+scripts/output/
+scripts/temp/

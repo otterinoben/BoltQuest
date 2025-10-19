@@ -14,17 +14,33 @@ A comprehensive React-based quiz game application with ELO ranking system, daily
 ## 🏗️ Project Structure
 
 ```
-├── src/                    # Source code
-│   ├── components/        # React components
-│   ├── contexts/          # React contexts for state management
-│   ├── hooks/             # Custom React hooks
-│   ├── lib/               # Core business logic
-│   ├── pages/             # Application pages
-│   └── types/             # TypeScript type definitions
-├── docs/                  # Documentation files
-├── plans/                 # Development plans and analysis
-├── reports/               # Sprint reports and assessments
-└── backups/              # Project backups
+├── src/                           # Application source code
+│   ├── components/               # React components
+│   ├── contexts/                 # React contexts for state management
+│   ├── hooks/                    # Custom React hooks
+│   ├── lib/                      # Core business logic
+│   ├── pages/                    # Application pages
+│   └── types/                    # TypeScript type definitions
+├── public/                       # Public assets
+│   ├── assets/
+│   │   ├── logos/               # All logo variations
+│   │   └── images/              # Other images
+│   ├── favicon.ico
+│   └── robots.txt
+├── docs/                         # Documentation hub
+│   ├── guides/                   # User-facing guides
+│   ├── features/                 # Feature documentation
+│   │   ├── active/              # Current features
+│   │   └── archived/            # Completed/deprecated features
+│   ├── technical/                # Technical documentation
+│   └── archive/                  # Historical documents
+├── plans/                        # Development planning
+│   ├── active/                   # Current sprint plans
+│   ├── completed/                # Finished plans
+│   └── archive/                  # Historical plans
+├── reports/                      # Reports and assessments
+├── scripts/                      # Utility scripts
+└── .backups/                     # Hidden backups (gitignored)
 ```
 
 ## 🚀 Quick Start
@@ -76,9 +92,10 @@ The application includes a comprehensive testing panel accessible via the admin 
 
 ## 📁 Documentation
 
+- **[Documentation Hub](docs/)** - Complete documentation index
 - **[Development Plans](plans/)** - Detailed implementation plans
 - **[Sprint Reports](reports/)** - Project progress and assessments
-- **[Documentation](docs/)** - Technical documentation and guides
+- **[Utility Scripts](scripts/)** - Development and testing scripts
 
 ## 🔧 Development
 
