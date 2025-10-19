@@ -2,8 +2,11 @@ import { Home, Zap, Trophy, BarChart3, User, HelpCircle, Award, Settings, Calend
 import { NavLink } from "react-router-dom";
 import { getUserProfile } from "@/lib/userStorage";
 import { EloSystem } from "@/lib/eloSystem";
+import { EloRankSystem } from "@/lib/eloRankSystem";
 import { Badge } from "@/components/ui/badge";
 import DynamicLevelIndicator from "./DynamicLevelIndicator";
+import { useUserStats } from "@/hooks/useUserStats";
+import { useState, useEffect } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -37,9 +40,102 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
   const userProfile = getUserProfile();
-  const eloSystem = new EloSystem();
-  const overallRating = eloSystem.getOverallRating();
-  const eloCategory = eloSystem.getEloCategory(overallRating);
+  const userStats = useUserStats();
+  const [eloData, setEloData] = useState<any>(null);
+
+  // Update ELO data in real-time
+  useEffect(() => {
+    const updateEloData = () => {
+      try {
+        const eloSystem = new EloSystem();
+        
+        // Initialize ELO data for existing users who don't have it
+        eloSystem.initializeForExistingUser();
+        
+        const eloRating = eloSystem.getOverallRating();
+        const eloRankDisplay = EloRankSystem.getEloRankDisplay(eloRating, 0);
+        
+        setEloData({
+          rating: eloRating,
+          rankDisplay: eloRankDisplay
+        });
+      } catch (error) {
+        console.error('Error updating ELO data in sidebar:', error);
+      }
+    };
+
+    // Update immediately
+    updateEloData();
+
+    // Update every 2 seconds for real-time feel
+    const interval = setInterval(updateEloData, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // ELO data with fallbacks
+  const eloRating = eloData?.rating || 1000;
+  const eloRankDisplay = eloData?.rankDisplay || EloRankSystem.getEloRankDisplay(1000, 0);
+
+  // ELO Rank Colors - Get color from EloRankSystem
+  const getEloRankColor = (rankDisplay: any) => {
+    if (!rankDisplay?.currentRank?.color) return 'text-blue-700';
+    
+    // Convert hex color to Tailwind text color class
+    const color = rankDisplay.currentRank.color;
+    
+    // Map hex colors to Tailwind classes
+    switch (color) {
+      case '#8B4513': return 'text-gray-700'; // Iron - more grey/brown
+      case '#CD7F32': return 'text-amber-700'; // Bronze - more brown than orange
+      case '#C0C0C0': return 'text-gray-600'; // Silver
+      case '#FFD700': return 'text-yellow-700'; // Gold
+      case '#00CED1': return 'text-teal-700'; // Platinum - more blue/green mix
+      case '#B9F2FF': return 'text-blue-600'; // Diamond
+      case '#8A2BE2': return 'text-purple-700'; // Master
+      case '#FF4500': return 'text-red-700'; // Grandmaster
+      case '#FFD700': return 'text-yellow-600'; // Challenger (same as Gold but different context)
+      default: return 'text-blue-700';
+    }
+  };
+
+  const getEloRankBorderColor = (rankDisplay: any) => {
+    if (!rankDisplay?.currentRank?.color) return 'border-blue-500';
+    
+    const color = rankDisplay.currentRank.color;
+    
+    switch (color) {
+      case '#8B4513': return 'border-gray-500'; // Iron - more grey/brown
+      case '#CD7F32': return 'border-amber-500'; // Bronze - more brown than orange
+      case '#C0C0C0': return 'border-gray-400'; // Silver
+      case '#FFD700': return 'border-yellow-500'; // Gold
+      case '#00CED1': return 'border-teal-500'; // Platinum - more blue/green mix
+      case '#B9F2FF': return 'border-blue-400'; // Diamond
+      case '#8A2BE2': return 'border-purple-500'; // Master
+      case '#FF4500': return 'border-red-500'; // Grandmaster
+      case '#FFD700': return 'border-yellow-400'; // Challenger
+      default: return 'border-blue-500';
+    }
+  };
+
+  const getEloRankBgColor = (rankDisplay: any) => {
+    if (!rankDisplay?.currentRank?.color) return 'bg-blue-50';
+    
+    const color = rankDisplay.currentRank.color;
+    
+    switch (color) {
+      case '#8B4513': return 'bg-gray-100'; // Iron - more grey/brown
+      case '#CD7F32': return 'bg-amber-50'; // Bronze - more brown than orange
+      case '#C0C0C0': return 'bg-gray-50'; // Silver
+      case '#FFD700': return 'bg-yellow-50'; // Gold
+      case '#00CED1': return 'bg-teal-50'; // Platinum - more blue/green mix
+      case '#B9F2FF': return 'bg-blue-50'; // Diamond
+      case '#8A2BE2': return 'bg-purple-50'; // Master
+      case '#FF4500': return 'bg-red-50'; // Grandmaster
+      case '#FFD700': return 'bg-yellow-50'; // Challenger
+      default: return 'bg-blue-50';
+    }
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border" variant="sidebar">
@@ -107,8 +203,8 @@ export function AppSidebar() {
                     showTierName={false}
                     showProgress={false}
                   />
-                  <Badge variant="outline" className={`border-${eloCategory.color}-500 text-${eloCategory.color}-700 bg-${eloCategory.color}-50 text-xs px-1 py-0`}>
-                    {overallRating}
+                  <Badge variant="outline" className={`${getEloRankBorderColor(eloRankDisplay)} ${getEloRankColor(eloRankDisplay)} ${getEloRankBgColor(eloRankDisplay)} text-xs px-1 py-0`}>
+                    {eloRating}
                   </Badge>
                 </div>
               ) : (
@@ -122,10 +218,10 @@ export function AppSidebar() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Target className="h-3 w-3 text-blue-600" />
-                      <span className="text-xs">{eloCategory.label}</span>
+                      <span className="text-xs">{eloRankDisplay.currentRank.tier} {eloRankDisplay.currentRank.division}</span>
                     </div>
-                    <Badge variant="outline" className={`border-${eloCategory.color}-500 text-${eloCategory.color}-700 bg-${eloCategory.color}-50 text-xs px-1 py-0`}>
-                      {overallRating}
+                    <Badge variant="outline" className={`${getEloRankBorderColor(eloRankDisplay)} ${getEloRankColor(eloRankDisplay)} ${getEloRankBgColor(eloRankDisplay)} text-xs px-1 py-0`}>
+                      {eloRating}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between">

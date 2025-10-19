@@ -41,11 +41,6 @@ import { EnhancedProgressIndicators } from '@/components/game/EnhancedProgressIn
 import { SmartPauseManager } from '@/components/game/SmartPauseManager';
 import { smartPauseSystem } from '@/lib/smartPauseSystem';
 import { HelpTrigger } from '@/components/help/HelpTrigger';
-import { CountdownTimer } from '@/components/loading/CountdownTimer';
-import { GameOverScreen } from '@/components/game/GameOverScreen';
-import { TrueFalseGame } from '@/components/game/TrueFalseGame';
-import { motion, AnimatePresence } from 'framer-motion';
-import { TRANSITION_VARIANTS } from '@/lib/animations';
 
 const Game = () => {
   const navigate = useNavigate();
@@ -61,8 +56,8 @@ const Game = () => {
   const taskTitle = searchParams.get("taskTitle");
 
   // Validate parameters and provide fallbacks
-  const validCategory = mode === 'truefalse' ? 'general' : (mockQuestions[category] ? category : "tech");
-  const validDifficulty = mode === 'truefalse' ? 'medium' : (mockQuestions[validCategory]?.[difficulty] ? difficulty : "medium");
+  const validCategory = mockQuestions[category] ? category : "tech";
+  const validDifficulty = mockQuestions[validCategory]?.[difficulty] ? difficulty : "medium";
 
   // Load user preferences for hints and auto-pause
   const [userPreferences, setUserPreferences] = useState({
@@ -119,7 +114,6 @@ const Game = () => {
 
   // Game state
   const [showGameOver, setShowGameOver] = useState(false);
-  const [gameOverPhase, setGameOverPhase] = useState<'game-over' | 'complete'>('game-over');
   const [gameState, setGameState] = useState<GameState>({
     currentQuestion: 0,
     score: 0,
@@ -134,21 +128,6 @@ const Game = () => {
     questionsSkipped: 0,
     skipPenalty: 0,
   });
-
-  // Countdown state
-  const [showCountdown, setShowCountdown] = useState(true);
-  const [gameStarted, setGameStarted] = useState(false);
-
-  // Countdown completion handler
-  const handleCountdownComplete = () => {
-    setShowCountdown(false);
-    setGameStarted(true);
-    // Reset start time when game actually begins
-    setGameState(prev => ({
-      ...prev,
-      startTime: new Date()
-    }));
-  };
 
   // Adaptive Difficulty System
   const [adaptiveManager] = useState(() => new AdaptiveDifficultyManager());
@@ -202,8 +181,8 @@ const Game = () => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [userPreferences.autoPause, gameState.isPaused, showGameOver]);
 
-  const questions = mode === 'truefalse' ? [] : mockQuestions[validCategory][validDifficulty];
-  const totalQuestions = mode === 'truefalse' ? 20 : questions.length;
+  const questions = mockQuestions[validCategory][validDifficulty];
+  const totalQuestions = questions.length;
 
   // Handle hint usage
   const handleHint = () => {
@@ -328,10 +307,8 @@ const Game = () => {
     setHintUsed(false);
   };
 
-  // Initialize question pool with randomization (skip for True/False mode)
-  const [questionPool] = useState(() => 
-    mode === 'truefalse' ? null : createQuestionPool(questions, DEFAULT_RANDOMIZATION_CONFIG)
-  );
+  // Initialize question pool with randomization
+  const [questionPool] = useState(() => createQuestionPool(questions, DEFAULT_RANDOMIZATION_CONFIG));
   const [randomizedQuestions, setRandomizedQuestions] = useState<RandomizedQuestion[]>([]);
   const [currentRandomizedQuestion, setCurrentRandomizedQuestion] = useState<RandomizedQuestion | null>(null);
 
@@ -361,11 +338,6 @@ const Game = () => {
   // Initialize randomized questions on component mount
   useEffect(() => {
     const initializeQuestions = () => {
-      if (mode === 'truefalse' || !questionPool) {
-        // Skip initialization for True/False mode
-        return;
-      }
-      
       const randomized = [];
       for (let i = 0; i < Math.min(totalQuestions, 20); i++) {
         randomized.push(questionPool.getNextQuestion());
@@ -375,7 +347,7 @@ const Game = () => {
     };
 
     initializeQuestions();
-  }, [questionPool, totalQuestions, mode]);
+  }, [questionPool, totalQuestions]);
 
   // Update current question when game state changes
   useEffect(() => {
@@ -396,12 +368,12 @@ const Game = () => {
     }
   }, []);
 
-  // Auto-save on game state changes (but not during countdown)
+  // Auto-save on game state changes
   useEffect(() => {
-    if (!showGameOver && !gameState.isPaused && !showCountdown) {
+    if (!showGameOver && !gameState.isPaused) {
       performAutoSave();
     }
-  }, [gameState.score, gameState.combo, gameState.questionsAnswered, showGameOver, gameState.isPaused, showCountdown, performAutoSave]);
+  }, [gameState.score, gameState.combo, gameState.questionsAnswered, showGameOver, gameState.isPaused, performAutoSave]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -439,7 +411,7 @@ const Game = () => {
   }, [showFeedback, gameState.isPaused, showGameOver]);
 
   useEffect(() => {
-    if ((mode === "quick" || mode === "classic") && !showGameOver && !gameState.isPaused && gameStarted) {
+    if ((mode === "quick" || mode === "classic") && !showGameOver && !gameState.isPaused) {
       const timer = setInterval(() => {
         setGameState((prev) => {
           if (prev.timeRemaining <= 1) {
@@ -452,9 +424,9 @@ const Game = () => {
 
       return () => clearInterval(timer);
     }
-  }, [mode, showGameOver, gameState.isPaused, gameStarted]);
+  }, [mode, showGameOver, gameState.isPaused]);
 
-  const currentQuestion = mode === 'truefalse' ? null : (currentRandomizedQuestion || questions[gameState.currentQuestion % questions.length]);
+  const currentQuestion = currentRandomizedQuestion || questions[gameState.currentQuestion % questions.length];
 
   const handleAnswer = (answerIndex: number) => {
     if (showFeedback) return;
@@ -784,19 +756,6 @@ const Game = () => {
   };
 
   const endGame = () => {
-    // Phase 1: Show "GAME OVER" immediately
-    setShowGameOver(true);
-    setGameOverPhase('game-over');
-    playSound('game_over');
-    
-    // Phase 2: After 2 seconds, show "Game Complete" with results
-    setTimeout(() => {
-      setGameOverPhase('complete');
-      calculateAndSaveResults();
-    }, 2000);
-  };
-
-  const calculateAndSaveResults = () => {
     // Calculate final statistics
     const correctAnswers = gameState.answers.filter((answer, index) => {
       const question = questions[index % questions.length];
@@ -1001,45 +960,12 @@ const Game = () => {
     } catch (error) {
       console.error('Error updating ELO:', error);
     }
+    
+    setShowGameOver(true);
   };
 
   const handleGameOverContinue = () => {
     navigate("/", { replace: true });
-  };
-
-  const handleAutoReplay = () => {
-    // Reset game state and start a new game
-    setShowGameOver(false);
-    setGameOverPhase('game-over');
-    setShowCountdown(true);
-    setGameStarted(false);
-    
-    // Reset game state
-    setGameState({
-      currentQuestion: 0,
-      score: 0,
-      combo: 0,
-      timeRemaining: totalTime,
-      answers: [],
-      startTime: new Date(),
-      questionsAnswered: 0,
-      isPaused: false,
-      pauseStartTime: undefined,
-      totalPauseTime: 0,
-      questionsSkipped: 0,
-      skipPenalty: 0,
-    });
-
-    // Reset other states
-    setSelectedAnswer(null);
-    setShowFeedback(false);
-    setHintUsed(false);
-    setShowHint(false);
-    setLongestCombo(0);
-
-    toast.success("Starting new game!", {
-      description: "Get ready for another round!"
-    });
   };
 
   const timePercentage = mode === "quick" ? (gameState.timeRemaining / totalTime) * 100 : 100;
@@ -1060,146 +986,363 @@ const Game = () => {
 
   if (showGameOver) {
     return (
-      <GameOverScreen
-        gameOverPhase={gameOverPhase}
-        gameState={gameState}
-        mode={mode}
-        category={validCategory}
-        difficulty={validDifficulty}
-        accuracy={accuracy}
-        longestCombo={longestCombo}
-        consecutiveStats={consecutiveStats}
-        totalTime={totalTime}
-        onAutoReplay={handleAutoReplay}
-      />
+      <div className="min-h-screen p-3 sm:p-4 md:p-6 lg:p-8 flex items-center justify-center animate-fade-in">
+        <Card className="w-full max-w-sm sm:max-w-md md:max-w-2xl border-accent/50 shadow-elegant">
+          <CardContent className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
+            <div className="text-center">
+              <Trophy className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-3 sm:mb-4 text-accent" />
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-2">Game Complete!</h1>
+              <p className="text-sm sm:text-base md:text-lg text-muted-foreground">
+                {mode === "quick" ? "Time Trial" : mode === "classic" ? "Classic" : "Training"} • {validCategory} • {validDifficulty}
+              </p>
+                </div>
+
+            {/* Psychologically Powerful Stats - 6 Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              {/* 1. Personal Best vs Current Score - Achievement Gap */}
+              <Card className="border-gray-200 bg-white">
+                <CardContent className="p-3 sm:p-4 text-center">
+                  <Trophy className="h-5 w-5 sm:h-6 sm:w-6 mx-auto mb-2 text-gray-600" />
+                  <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
+                    {gameState.score}
+                </div>
+                  <p className="text-xs text-gray-600 font-medium">Your Score</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {gameState.score >= 10 ? "New Personal Best!" : "Beat your best!"}
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* 2. Accuracy with Motivation */}
+              <Card className="border-gray-200 bg-white">
+                <CardContent className="p-3 sm:p-4 text-center">
+                  <Target className="h-5 w-5 sm:h-6 sm:w-6 mx-auto mb-2 text-gray-600" />
+                  <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">{accuracy}%</div>
+                  <p className="text-xs text-gray-600 font-medium">Accuracy</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {accuracy >= 80 ? "Excellent!" : accuracy >= 60 ? "Good!" : "Keep improving!"}
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* 3. Combo Streak - Momentum Builder */}
+              <Card className="border-gray-200 bg-white">
+                <CardContent className="p-3 sm:p-4 text-center">
+                  <Flame className="h-5 w-5 sm:h-6 sm:w-6 mx-auto mb-2 text-gray-600" />
+                  <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">{longestCombo}x</div>
+                  <p className="text-xs text-gray-600 font-medium">Best Combo</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {longestCombo >= 5 ? "On Fire!" : "Build momentum!"}
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* 4. Questions Answered - Progress */}
+              <Card className="border-gray-200 bg-white">
+                <CardContent className="p-3 sm:p-4 text-center">
+                  <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6 mx-auto mb-2 text-gray-600" />
+                  <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
+                    {gameState.questionsAnswered}
+                </div>
+                  <p className="text-xs text-gray-600 font-medium">Questions</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {gameState.questionsAnswered >= 10 ? "Knowledge Master!" : "Keep learning!"}
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* 5. Time Performance - Speed Challenge */}
+              <Card className="border-gray-200 bg-white">
+                <CardContent className="p-3 sm:p-4 text-center">
+                  <Clock className="h-5 w-5 sm:h-6 sm:w-6 mx-auto mb-2 text-gray-600" />
+                  <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
+                    {Math.round((totalTime - gameState.timeRemaining) / gameState.questionsAnswered * 10) / 10}s
+                </div>
+                  <p className="text-xs text-gray-600 font-medium">Avg/Question</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {Math.round((totalTime - gameState.timeRemaining) / gameState.questionsAnswered * 10) / 10 <= 3 ? "Lightning Fast!" : "Speed up!"}
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* 6. Streak Counter - Habit Formation */}
+              <Card className="border-gray-200 bg-white">
+                <CardContent className="p-3 sm:p-4 text-center">
+                  <Trophy className="h-5 w-5 sm:h-6 sm:w-6 mx-auto mb-2 text-gray-600" />
+                  <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
+                    {consecutiveStats.currentStreak}
+              </div>
+                  <p className="text-xs text-gray-600 font-medium">Game Streak</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {consecutiveStats.currentStreak >= 3 ? "Streak Master!" : "Build your streak!"}
+                  </p>
+          </CardContent>
+        </Card>
+            </div>
+            
+            {/* Stats Bar - Moved Down */}
+            <Card className="border-gray-200 bg-white shadow-sm">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <Badge variant="secondary" className="capitalize bg-gray-100 text-gray-700 border-gray-200">
+                      {category}
+                    </Badge>
+                    <span className="text-sm font-medium text-gray-600">
+                      Questions Answered: <span className="text-gray-900 font-bold">{gameState.questionsAnswered}</span>
+                    </span>
+                    <span className="text-sm font-medium text-gray-600">
+                      Accuracy: <span className="text-gray-900 font-bold">{accuracy}%</span>
+                    </span>
+      </div>
+            </div>
+          </CardContent>
+        </Card>
+            {(() => {
+              try {
+                const unlockedAchievements = getUnlockedAchievements();
+                const recentAchievements = unlockedAchievements.filter(a => 
+                  Date.now() - a.unlockedAt < 60000 // Show achievements unlocked in last minute
+                );
+                
+                if (recentAchievements.length > 0) {
+    return (
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold text-foreground text-center">
+                        🏆 Achievements Unlocked!
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {recentAchievements.map((achievement) => (
+                          <div 
+                            key={achievement.id}
+                            className="flex items-center gap-3 p-3 bg-gradient-primary rounded-lg border border-accent/50"
+                          >
+                            <div className="text-2xl">{achievement.icon}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold text-primary-foreground text-sm">
+                                {achievement.name}
+                              </div>
+                              <div className="text-xs text-primary-foreground/80">
+                                {achievement.description}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+        </div>
+      </div>
     );
   }
+              } catch (error) {
+                console.error('Error displaying achievements:', error);
+              }
+              return null;
+            })()}
 
-  // Handle True/False mode
-  if (mode === 'truefalse') {
-    // Get selected categories from URL params or use default
-    const categoriesParam = searchParams.get('categories');
-    const selectedCategories = categoriesParam ? categoriesParam.split(',') : ['general'];
-    
-    return (
-      <TrueFalseGame
-        selectedCategories={selectedCategories}
-        onComplete={(results) => {
-          // Convert True/False results to game state format
-          const correctAnswers = results.filter(r => r.isCorrect).length;
-          const totalPoints = results.reduce((sum, r) => sum + r.pointsEarned, 0);
-          
-          // Set game over state
-          setGameState(prev => ({
-            ...prev,
-            score: totalPoints,
-            questionsAnswered: results.length,
-            correctAnswers: correctAnswers
-          }));
-          setShowGameOver(true);
-        }}
-        onQuit={() => navigate('/play')}
-      />
+            {/* UX-Optimized Action Buttons */}
+            <div className="space-y-3 sm:space-y-4">
+              {/* Primary Action: Replay - Large & Prominent */}
+              <Button
+                size="lg"
+                onClick={() => window.location.reload()}
+                className="w-full min-h-[48px] sm:h-16 bg-black hover:bg-gray-800 text-white text-lg sm:text-xl font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                <div className="flex items-center justify-center gap-2 sm:gap-3">
+                  <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-700 rounded-full flex items-center justify-center">
+                    <RotateCcw className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+        </div>
+                  <span>Replay</span>
+                </div>
+              </Button>
+
+              {/* Secondary Actions Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+            <Button
+              variant="outline"
+                  size="lg"
+              onClick={() => navigate("/play")}
+                  className="min-h-[44px] sm:h-12 bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gray-100 rounded-full flex items-center justify-center">
+                      <span className="text-xs font-bold">🔄</span>
+                    </div>
+                    <span>New Game</span>
+                  </div>
+            </Button>
+
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => navigate("/")}
+                  className="min-h-[44px] sm:h-12 bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gray-100 rounded-full flex items-center justify-center">
+                      <span className="text-xs font-bold">🏠</span>
+          </div>
+                    <span>Home</span>
+                  </div>
+                </Button>
+              </div>
+
+              {/* Social Sharing Row */}
+              <div className="space-y-3">
+                <div className="text-center">
+                  <p className="text-sm text-gray-600 mb-3">Share your score and earn coins!</p>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const result = quickShare({
+                        score: gameState.score,
+                        streak: longestCombo,
+                        gameMode: mode,
+                        difficulty,
+                        category
+                      }, 'twitter');
+                      if (result.success && result.coinsAwarded) {
+                        toast.success(`+${result.coinsAwarded} coins earned!`, {
+                          description: 'Thanks for sharing to Twitter!',
+                        });
+                      }
+                    }}
+                    className="h-10 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all duration-200"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm">🐦</span>
+                      <span className="text-xs font-medium">Twitter</span>
+                    </div>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const result = quickShare({
+                        score: gameState.score,
+                        streak: longestCombo,
+                        gameMode: mode,
+                        difficulty,
+                        category
+                      }, 'linkedin');
+                      if (result.success && result.coinsAwarded) {
+                        toast.success(`+${result.coinsAwarded} coins earned!`, {
+                          description: 'Thanks for sharing to LinkedIn!',
+                        });
+                      }
+                    }}
+                    className="h-10 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all duration-200"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm">💼</span>
+                      <span className="text-xs font-medium">LinkedIn</span>
+                    </div>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const result = quickShare({
+                        score: gameState.score,
+                        streak: longestCombo,
+                        gameMode: mode,
+                        difficulty,
+                        category
+                      }, 'facebook');
+                      if (result.success && result.coinsAwarded) {
+                        toast.success(`+${result.coinsAwarded} coins earned!`, {
+                          description: 'Thanks for sharing to Facebook!',
+                        });
+                      }
+                    }}
+                    className="h-10 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all duration-200"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm">📘</span>
+                      <span className="text-xs font-medium">Facebook</span>
+                    </div>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      {/* Countdown Timer */}
-      <AnimatePresence>
-        {showCountdown && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-            <CountdownTimer
-              onComplete={handleCountdownComplete}
-              duration={3}
-              text="Get Ready!"
-              showGo={true}
-            />
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Game Content - Viewport Optimized */}
-      <div className="flex-1 flex flex-col p-4 md:p-6 overflow-hidden">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: gameStarted ? 1 : 0, scale: gameStarted ? 1 : 0.95 }}
-          transition={{ duration: 0.5 }}
-          className="flex-1 flex flex-col max-w-4xl mx-auto w-full"
-      >
-        {/* Task Context Banner - Compact */}
-        {taskId && taskTitle && (
-          <div className="flex-shrink-0 mb-3">
-            <Card className="border-primary/50 bg-gradient-primary shadow-elegant">
-              <CardContent className="py-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Target className="h-4 w-4 text-primary-foreground" />
+    <div className="min-h-screen p-6 md:p-8 flex items-center justify-center animate-fade-in">
+      <div className="w-full max-w-4xl space-y-6">
+        {/* Debug Panel - Randomization Analytics (only in development) */}
+        {process.env.NODE_ENV === 'development' && (
+          <Card className="border-yellow-200 bg-yellow-50">
+            <CardContent className="p-4">
+              <h3 className="text-sm font-semibold text-yellow-800 mb-2">🔧 Randomization Debug</h3>
+              <div className="text-xs text-yellow-700 space-y-1">
+                <div>Question Pool Stats: {questionPool.getStats().remainingQuestions} remaining</div>
+                <div>Current Question Randomized: {currentRandomizedQuestion?.wasRandomized ? '✅' : '❌'}</div>
+                <div>Original Position: {currentRandomizedQuestion?.originalCorrectAnswer}</div>
+                <div>Current Position: {currentRandomizedQuestion?.correctAnswer}</div>
+                {(() => {
+                  const analytics = getRandomizationAnalytics();
+                  return analytics ? (
                     <div>
-                      <h3 className="text-sm font-semibold text-primary-foreground">Daily Task</h3>
-                      <p className="text-xs text-primary-foreground/80">{taskTitle}</p>
-                    </div>
-                  </div>
-                  <Badge variant="secondary" className="bg-primary-foreground/20 text-primary-foreground text-xs">
-                    +50 XP
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
+                      <div>Analytics: {analytics.totalQuestions} questions tracked</div>
+                      <div>Bias Detected: {analytics.biasDetected ? '⚠️' : '✅'}</div>
+                      <div>Distribution: {analytics.answerPositionDistribution.position0}/{analytics.answerPositionDistribution.position1}/{analytics.answerPositionDistribution.position2}/{analytics.answerPositionDistribution.position3}</div>
+            </div>
+                  ) : null;
+                })()}
+            </div>
+            </CardContent>
+          </Card>
+        )}
+        {/* Task Context Banner */}
+        {taskId && taskTitle && (
+          <Card className="border-primary/50 bg-gradient-primary shadow-elegant">
+            <CardContent className="pt-6">
+        <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Target className="h-5 w-5 text-primary-foreground" />
+                  <div>
+                    <h3 className="font-semibold text-primary-foreground">Daily Task Active</h3>
+                    <p className="text-sm text-primary-foreground/80">{taskTitle}</p>
+              </div>
           </div>
+            <Button
+              variant="outline"
+              size="sm"
+                  onClick={() => navigate('/daily-tasks')}
+                  className="bg-primary-foreground/10 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/20"
+            >
+                  View Tasks
+            </Button>
+          </div>
+            </CardContent>
+          </Card>
         )}
 
-        {/* Game Header - Compact */}
-        <div className="flex-shrink-0 flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-sm px-3 py-1">
-              {validCategory}
-            </Badge>
-            <Badge variant="outline" className="text-sm px-3 py-1">
-              {validDifficulty}
-            </Badge>
-            <Badge variant="outline" className="text-sm px-3 py-1">
-              {mode}
-            </Badge>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePause}
-              className="flex items-center gap-1 text-xs px-2 py-1"
-            >
-              {gameState.isPaused ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
-              {gameState.isPaused ? 'Resume' : 'Pause'}
-            </Button>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleQuit}
-              className="flex items-center gap-1 text-red-600 hover:text-red-700 text-xs px-2 py-1"
-            >
-              <X className="h-3 w-3" />
-              Quit
-            </Button>
-          </div>
-        </div>
-
-        {/* Enhanced Progress Indicators - Compact */}
-        <div className="flex-shrink-0 mb-4">
-          <EnhancedProgressIndicators
-            score={gameState.score}
-            combo={gameState.combo}
-            timeRemaining={gameState.timeRemaining}
-            questionsAnswered={gameState.questionsAnswered}
-            accuracy={Math.round(((gameState.score || 0) / Math.max(gameState.questionsAnswered, 1)) * 100)}
-            mode={mode}
-            isPaused={gameState.isPaused}
-            streakMilestone={5}
-            personalBest={10}
-          />
-        </div>
+            {/* Enhanced Progress Indicators */}
+            <div className="relative">
+              <EnhancedProgressIndicators
+                score={gameState.score}
+                combo={gameState.combo}
+                timeRemaining={gameState.timeRemaining}
+                questionsAnswered={gameState.questionsAnswered}
+                accuracy={Math.round(((gameState.score || 0) / Math.max(gameState.questionsAnswered, 1)) * 100)}
+                mode={mode}
+                isPaused={gameState.isPaused}
+                streakMilestone={5}
+                personalBest={10}
+              />
+              <div className="absolute top-4 right-4">
+                <HelpTrigger helpKey="game-progress" position="left" />
+              </div>
+            </div>
 
         {/* Rain Effect Penalty Animation */}
         {penaltyAnimations.map((anim) => (
@@ -1251,12 +1394,11 @@ const Game = () => {
         ))}
 
 
-        {/* Question Card - Compact */}
-        <div className="flex-1 flex flex-col justify-center">
-          <Card className={`border-border shadow-elegant animate-scale-in relative ${
-            gameState.isPaused ? 'opacity-50' : ''
-          }`}>
-            <CardContent className="p-4 sm:p-6">
+        {/* Question Card */}
+        <Card className={`border-border shadow-elegant animate-scale-in relative ${
+          gameState.isPaused ? 'opacity-50' : ''
+        }`}>
+          <CardContent className="p-4 sm:p-6 md:p-8">
         {/* Pause Overlay */}
         {gameState.isPaused && (
               <div 
@@ -1281,25 +1423,25 @@ const Game = () => {
           </div>
         )}
 
-            <div className="mb-4">
-              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground mb-2">
+            <div className="mb-6 sm:mb-8">
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground mb-3 sm:mb-4">
                 {currentQuestion.buzzword}
               </h2>
-              <p className="text-sm sm:text-base text-muted-foreground">
+              <p className="text-sm sm:text-base md:text-lg text-muted-foreground">
                 What does this buzzword mean?
               </p>
             </div>
 
-            {/* Hint Section - Compact */}
+            {/* Hint Section */}
             {userPreferences.hintsEnabled && (
-              <div className="space-y-2 mb-4">
+              <div className="space-y-3 mb-6">
                 <div className="flex items-center justify-between">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleHint}
                     disabled={hintUsed || showFeedback}
-                    className="h-7 px-2 bg-black border-black text-white hover:bg-gray-800 hover:border-gray-800 transition-all duration-200 font-medium text-xs"
+                    className="h-8 px-3 bg-black border-black text-white hover:bg-gray-800 hover:border-gray-800 transition-all duration-200 font-medium text-xs"
                   >
                     <Target className="h-3 w-3 mr-1" />
                     {hintUsed ? "Hint Used" : "Get Hint"}
@@ -1323,21 +1465,21 @@ const Game = () => {
               </div>
             )}
 
-            {/* Compact Timer Display */}
-            <div className="mb-3 text-center">
-              <div className={`text-xl sm:text-2xl font-black tracking-tight transition-all duration-300 ${
+            {/* Compact Timer Display - Right above answers for crucial visibility */}
+            <div className="mb-4 text-center">
+              <div className={`text-2xl sm:text-3xl font-black tracking-tight transition-all duration-300 ${
                 gameState.timeRemaining <= 5 ? 'text-red-500 animate-pulse' :
                 gameState.timeRemaining <= 10 ? 'text-orange-500 animate-bounce' : 'text-gray-800'
               }`}>
                 {Math.floor(gameState.timeRemaining / 60)}:
                 {(gameState.timeRemaining % 60).toString().padStart(2, "0")}
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 mt-1 font-medium">
                 {(mode === "quick" || mode === "classic") ? "Time Left" : "Time Elapsed"}
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:gap-3">
               {currentQuestion.options.map((option, index) => {
                 const isSelected = selectedAnswer === index;
                 const isCorrectAnswer = index === currentQuestion.correctAnswer;
@@ -1348,10 +1490,10 @@ const Game = () => {
                   <Button
                     key={index}
                     variant="outline"
-                    size="sm"
+                    size="lg"
                     onClick={() => handleAnswer(index)}
                     disabled={showFeedback || gameState.isPaused}
-                    className={`min-h-[40px] px-3 text-left justify-start font-medium transition-all duration-200 ${
+                    className={`min-h-[48px] sm:min-h-[52px] px-4 text-left justify-start font-medium transition-all duration-200 ${
                       showCorrect
                         ? "bg-green-500 border-green-500 text-white hover:bg-green-500 animate-correct-answer"
                         : showWrong
@@ -1361,20 +1503,20 @@ const Game = () => {
                         : "bg-white border-gray-300 text-gray-900 hover:bg-black hover:border-black hover:text-white"
                     }`}
                   >
-                    <span className="flex-1 text-sm">{option}</span>
+                    <span className="flex-1 text-sm sm:text-base">{option}</span>
                     {showCorrect && (
-                      <CheckCircle2 className="h-4 w-4 text-white ml-2 flex-shrink-0" />
+                      <CheckCircle2 className="h-5 w-5 text-white ml-2 flex-shrink-0" />
                     )}
                     {showWrong && (
-                      <XCircle className="h-4 w-4 text-white ml-2 flex-shrink-0" />
+                      <XCircle className="h-5 w-5 text-white ml-2 flex-shrink-0" />
                     )}
                   </Button>
                 );
               })}
             </div>
 
-            {/* Game Control Buttons - Compact */}
-            <div className="flex flex-col sm:flex-row gap-2 justify-center mt-4">
+            {/* Game Control Buttons - Clean & Sleek */}
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center mt-6 sm:mt-8">
           <Button
             variant="outline"
                 size="sm"
@@ -1494,7 +1636,6 @@ const Game = () => {
         </div>
           </CardContent>
         </Card>
-        </div>
 
         {/* Game Info */}
         <div className="flex flex-col items-center gap-3">
@@ -1504,9 +1645,9 @@ const Game = () => {
           
           <div className="text-center text-xs text-gray-500">
             <p>Keyboard shortcuts: <span className="font-medium text-gray-700">S</span> to skip • <span className="font-medium text-gray-700">Space</span> to pause • <span className="font-medium text-gray-700">Esc</span> to quit</p>
-          </div>
+      </div>
         </div>
-      </motion.div>
+      </div>
       
       {/* Level Up Popup */}
       <LevelUpPopup
@@ -1528,7 +1669,6 @@ const Game = () => {
         onClose={() => setShowFlowFeedback(false)}
       />
 
-    </div>
     </div>
   );
 };

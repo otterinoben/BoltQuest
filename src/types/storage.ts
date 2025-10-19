@@ -97,12 +97,32 @@ export interface UserProfile {
   lifetimeCoins?: number;
   // Baseline Assessment
   baselineCompleted?: boolean;
-  baselineSkipped?: boolean;
   baselineResults?: {
-    completedAt: Date;
-    overallAccuracy: number;
-    recommendedDifficulty: Difficulty;
-    categoryScores: Record<Category, { correct: number; total: number; accuracy: number }>;
+    categoryRatings: Record<string, number>;
+    overallRating: number;
+    completedAt: number;
+  };
+  // ELO Rating System
+  eloRating?: {
+    currentRating: number;
+    peakRating: number;
+    gamesPlayed: number;
+    wins: number;
+    losses: number;
+    winStreak: number;
+    bestWinStreak: number;
+    lastUpdated: Date;
+    ratingHistory: Array<{
+      rating: number;
+      change: number;
+      gameResult: 'win' | 'loss' | 'draw';
+      category: string;
+      difficulty: string;
+      timestamp: Date;
+      performance: number;
+    }>;
+    categoryRatings: Record<string, number>;
+    overallRating?: number;
   };
 }
 

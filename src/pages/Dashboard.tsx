@@ -1,443 +1,448 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { 
-  Zap, 
-  Target, 
-  Trophy, 
-  TrendingUp, 
-  BookOpen, 
-  Calendar, 
-  Flame, 
-  Sparkles, 
-  Play,
-  ArrowRight,
-  Star,
-  Clock,
-  Award,
-  BarChart3,
-  Users,
-  Settings
-} from "lucide-react";
+import { Zap, Target, Trophy, TrendingUp, BookOpen, Calendar, Flame, Sparkles, Play, Award, Clock, Gamepad2, Users, Search, Circle, CheckCircle2, ArrowRight as ArrowRightIcon, Star, Crown, Shield } from "lucide-react";
+import { Coins } from "lucide-react";
 import { getUserProfile } from "@/lib/userStorage";
+import { getCurrentDailyTasks } from "@/lib/dailyTaskManager";
 import { getGameHistoryByUserId } from "@/lib/gameHistoryStorage";
-import { getCurrentDailyTasks, getDailyTaskStats, getTaskCompletionPercentage } from "@/lib/dailyTaskManager";
-import TutorialManager from "@/components/tutorial/TutorialManager";
-import LevelDisplay from "@/components/LevelDisplay";
-import CoinDisplay from "@/components/CoinDisplay";
-import { getCoinBalance } from "@/lib/coinSystem";
-import { dashboardWidgetManager, DashboardWidget } from "@/lib/dashboardWidgets";
-import { DashboardWidgetRenderer } from "@/components/dashboard/DashboardWidgetRenderer";
-import { SmartNotificationCenter } from "@/components/notifications/SmartNotificationCenter";
-import { HelpTrigger } from '@/components/help/HelpTrigger';
-import { EloSystem } from '@/lib/eloSystem';
+import { EloSystem } from "@/lib/eloSystem";
+import { EloRankSystem } from "@/lib/eloRankSystem";
+import { useUserData } from '@/contexts/UserDataContext';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  
-  // State for reactive data
-  const [userProfile, setUserProfile] = useState(getUserProfile());
-  const [dailyTasks, setDailyTasks] = useState(getCurrentDailyTasks());
-  const [dailyStats, setDailyTaskStats] = useState(getDailyTaskStats());
-  const [recentGames, setRecentGames] = useState(getGameHistoryByUserId(userProfile.id).slice(0, 5));
-  const [smartWidgets, setSmartWidgets] = useState<DashboardWidget[]>([]);
-  
-  // Function to refresh all data
-  const refreshData = () => {
-    const profile = getUserProfile();
-    const tasks = getCurrentDailyTasks();
-    const stats = getDailyTaskStats();
-    const games = getGameHistoryByUserId(profile.id).slice(0, 5);
-    
-    setUserProfile(profile);
-    setDailyTasks(tasks);
-    setDailyTaskStats(stats);
-    setRecentGames(games);
-    
-    // Refresh smart widgets
-    const widgets = dashboardWidgetManager.refreshWidgets();
-    setSmartWidgets(widgets);
-  };
-  
-  // Initialize smart widgets
-  useEffect(() => {
-    const widgets = dashboardWidgetManager.generateWidgets();
-    setSmartWidgets(widgets);
-  }, []);
+  const { userData, isLoading, error } = useUserData();
+  const [dailyTasks, setDailyTasks] = useState<any[]>([]);
+  const [recentGames, setRecentGames] = useState<any[]>([]);
+  const [eloData, setEloData] = useState<any>(null);
 
-  // Auto-refresh data every 2 seconds
+  // Load daily tasks and recent games
   useEffect(() => {
-    const interval = setInterval(refreshData, 2000);
+    const loadAdditionalData = () => {
+      try {
+        // Load daily tasks
+        const tasks = getCurrentDailyTasks();
+        if (tasks && tasks.tasks) {
+          setDailyTasks(tasks.tasks);
+        }
+
+        // Load recent games
+        const games = getGameHistoryByUserId(userData?.id || 'default');
+        setRecentGames(games.slice(0, 3));
+      } catch (error) {
+        console.error('Error loading additional dashboard data:', error);
+      }
+    };
+
+    if (userData && !isLoading) {
+      loadAdditionalData();
+    }
+  }, [userData, isLoading]);
+
+  // Update ELO data in real-time
+  useEffect(() => {
+    const updateEloData = () => {
+      try {
+        const eloSystem = new EloSystem();
+        
+        // Initialize ELO data for existing users who don't have it
+        eloSystem.initializeForExistingUser();
+        
+        const eloRating = eloSystem.getOverallRating();
+        const eloRankDisplay = EloRankSystem.getEloRankDisplay(eloRating, 0);
+        
+        setEloData({
+          rating: eloRating,
+          rankDisplay: eloRankDisplay
+        });
+        
+        // Debug logging
+        console.log('🔄 ELO Update:', {
+          rating: eloRating,
+          rank: eloRankDisplay.currentRank.tier + ' ' + eloRankDisplay.currentRank.division
+        });
+      } catch (error) {
+        console.error('Error updating ELO data:', error);
+      }
+    };
+
+    // Update immediately
+    updateEloData();
+
+    // Update every 2 seconds for real-time feel
+    const interval = setInterval(updateEloData, 2000);
+
     return () => clearInterval(interval);
   }, []);
 
-  // Handle widget actions
-  const handleWidgetAction = (action: string, data?: any) => {
-    switch (action) {
-      case 'quick_play':
-        navigate('/play');
-        break;
-      case 'continue_game':
-        navigate(`/game?resume=${data.gameId}`);
-        break;
-      case 'daily_challenge':
-        navigate('/daily-tasks');
-        break;
-      case 'play_game':
-        const params = new URLSearchParams();
-        if (data.category && data.category !== 'any') params.set('category', data.category);
-        if (data.difficulty && data.difficulty !== 'any') params.set('difficulty', data.difficulty);
-        navigate(`/play?${params.toString()}`);
-        break;
-      case 'view_progress':
-        navigate('/analytics');
-        break;
-      case 'view_daily_tasks':
-        navigate('/daily-tasks');
-        break;
-      case 'view_achievements':
-        navigate('/achievements');
-        break;
-      case 'achievement_hunt':
-        navigate('/play');
-        break;
-      case 'view_leaderboards':
-        navigate('/leaderboards');
-        break;
-      case 'view_community':
-        navigate('/community');
-        break;
-      default:
-        console.log('Unknown action:', action, data);
+  // Refresh data when page becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && userData) {
+        // Refresh daily tasks and recent games
+        const tasks = getCurrentDailyTasks();
+        if (tasks && tasks.tasks) {
+          setDailyTasks(tasks.tasks);
+        }
+
+        const games = getGameHistoryByUserId(userData.id);
+        setRecentGames(games.slice(0, 3));
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [userData]);
+
+  // ELO data with fallbacks
+  const eloRating = eloData?.rating || 1000;
+  const eloRankDisplay = eloData?.rankDisplay || EloRankSystem.getEloRankDisplay(1000, 0);
+
+  // Calculate stats with fallbacks
+  const level = userData?.level || 1;
+  const totalXp = userData?.totalXp || 0;
+  const coins = userData?.coins || 0;
+  const streak = userData?.streak || 0;
+  const totalGames = userData?.totalGamesPlayed || 0;
+  const bestScore = userData?.bestScore || 0;
+  const avgAccuracy = userData?.averageAccuracy || 0;
+
+  // Calculate daily progress
+  const completedTasks = dailyTasks.filter(task => task.completed).length;
+  const dailyProgress = dailyTasks.length > 0 ? Math.round((completedTasks / dailyTasks.length) * 100) : 0;
+
+  // ELO Rank Colors - Get color from EloRankSystem
+  const getEloRankColor = (rankDisplay: any) => {
+    if (!rankDisplay?.currentRank?.color) return 'text-gray-600';
+    
+    // Convert hex color to Tailwind text color class
+    const color = rankDisplay.currentRank.color;
+    
+    // Map hex colors to Tailwind classes
+    switch (color) {
+      case '#8B4513': return 'text-gray-700'; // Iron - more grey/brown
+      case '#CD7F32': return 'text-amber-700'; // Bronze - more brown than orange
+      case '#C0C0C0': return 'text-gray-500'; // Silver
+      case '#FFD700': return 'text-yellow-600'; // Gold
+      case '#00CED1': return 'text-teal-600'; // Platinum - more blue/green mix
+      case '#B9F2FF': return 'text-blue-500'; // Diamond
+      case '#8A2BE2': return 'text-purple-600'; // Master
+      case '#FF4500': return 'text-red-600'; // Grandmaster
+      case '#FFD700': return 'text-yellow-500'; // Challenger (same as Gold but different context)
+      default: return 'text-gray-600';
     }
   };
-  
-  // Calculate real stats
-  const totalGames = userProfile.statistics.totalGamesPlayed;
-  const totalScore = userProfile.statistics.totalScore;
-  const avgScore = totalGames > 0 ? Math.round(totalScore / totalGames) : 0;
-  const bestScore = userProfile.statistics.bestScore;
-  const dailyProgress = dailyTasks ? getTaskCompletionPercentage(dailyTasks) : 0;
+
+  // Legacy ELO color function (keeping for compatibility)
+  const getEloColor = (rating: number) => {
+    if (rating >= 2000) return 'text-red-600';
+    if (rating >= 1800) return 'text-purple-600';
+    if (rating >= 1600) return 'text-cyan-600';
+    if (rating >= 1400) return 'text-blue-600';
+    if (rating >= 1200) return 'text-yellow-600';
+    if (rating >= 1000) return 'text-gray-600';
+    if (rating >= 800) return 'text-orange-600';
+    return 'text-gray-500';
+  };
+
+  // ELO Rank Icons
+  const getEloIcon = (rating: number) => {
+    if (rating >= 2000) return <Crown className="h-5 w-5" />;
+    if (rating >= 1800) return <Star className="h-5 w-5" />;
+    if (rating >= 1600) return <Shield className="h-5 w-5" />;
+    if (rating >= 1400) return <Trophy className="h-5 w-5" />;
+    if (rating >= 1200) return <Award className="h-5 w-5" />;
+    if (rating >= 1000) return <Target className="h-5 w-5" />;
+    if (rating >= 800) return <Flame className="h-5 w-5" />;
+    return <Circle className="h-5 w-5" />;
+  };
+
+  // Show loading state
+  if (isLoading || !userData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Error loading dashboard: {error}</p>
+          <Button onClick={() => window.location.reload()}>Retry</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Tutorial Manager */}
-      <TutorialManager pageId="dashboard" />
-      
-      {/* Hero Section - Black/White with Color Accents */}
-      <div className="relative bg-black">
-        <div className="absolute inset-0 bg-gradient-to-br from-black via-gray-900 to-black"></div>
-        <div className="relative z-10 px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20">
-          <div className="max-w-4xl mx-auto text-center">
-            {/* Welcome Message */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="mb-8"
-            >
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-4">
-                Welcome to BoltQuest
+      <div className="container mx-auto px-6 py-6">
+        {/* Hero Section */}
+        <div className="text-center py-8 sm:py-12">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+            Welcome back! 🎯
               </h1>
-              <p className="text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
-                Master industry buzzwords and jargon through engaging quizzes. 
-                Start smart, learn fast, climb the leaderboards.
-              </p>
-            </motion.div>
-
-            {/* Primary Action */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="mb-8"
-            >
-              <Button 
-                size="lg" 
-                className="bg-blue-600 hover:bg-blue-700 text-white text-lg px-8 py-4 h-auto font-semibold shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
-                onClick={() => navigate('/play')}
-              >
-                <Zap className="mr-3 h-6 w-6" />
-                Start Playing
-              </Button>
-            </motion.div>
-
-            {/* Quick Stats Preview */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className="flex justify-center items-center gap-8 text-gray-400"
-            >
-              <div className="text-center">
-                <div className="text-2xl font-bold text-white">{totalGames}</div>
-                <div className="text-sm">Games Played</div>
+          <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+            Ready to level up your knowledge? Let's dive into some challenging questions!
+          </p>
+          
+          {/* Quick Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mb-8">
+            <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+              <div className="flex items-center justify-center mb-2">
+                <Trophy className="h-5 w-5 text-yellow-500" />
               </div>
-              <div className="w-px h-8 bg-gray-600"></div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-white">{bestScore}</div>
-                <div className="text-sm">Best Score</div>
+              <div className="text-2xl font-bold text-gray-900">{level}</div>
+              <div className="text-sm text-gray-500">Level</div>
+            </div>
+            <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+              <div className="flex items-center justify-center mb-2">
+                <Coins className="h-5 w-5 text-yellow-500" />
               </div>
-              <div className="w-px h-8 bg-gray-600"></div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-white">{avgScore}</div>
-                <div className="text-sm">Average</div>
+              <div className="text-2xl font-bold text-gray-900">{coins}</div>
+              <div className="text-sm text-gray-500">Coins</div>
+            </div>
+            <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+              <div className="flex items-center justify-center mb-2">
+                <Flame className="h-5 w-5 text-orange-500" />
               </div>
-            </motion.div>
+              <div className="text-2xl font-bold text-gray-900">{streak}</div>
+              <div className="text-sm text-gray-500">Streak</div>
+            </div>
+            <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+              <div className="flex items-center justify-center mb-2">
+                <span className="text-2xl">{eloRankDisplay.currentRank.icon}</span>
+              </div>
+              <div className={`text-2xl font-bold ${getEloRankColor(eloRankDisplay)}`}>{eloRating}</div>
+              <div className="text-sm text-gray-500">{eloRankDisplay.currentRank.tier} {eloRankDisplay.currentRank.division}</div>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="px-4 sm:px-6 lg:px-8 py-8 bg-white">
-        <div className="max-w-7xl mx-auto">
-          
-          {/* Progress Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-            className="mb-12"
-          >
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Level Progress */}
-              <Card className="border border-gray-200 shadow-sm bg-white hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-black">Your Progress</h3>
-                    <Trophy className="h-5 w-5 text-yellow-500" />
+        {/* Progress Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {/* Match History */}
+          <Card className="glass border-white/20 shadow-lg">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-blue-500" />
+                Recent Matches
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {recentGames.length > 0 ? (
+                <div className="space-y-3">
+                  {recentGames.slice(0, 3).map((game, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                          <Target className="h-3 w-3 text-blue-600" />
                   </div>
-                  <LevelDisplay variant="compact" showProgress={true} />
-                </CardContent>
-              </Card>
-
-              {/* Coin Balance */}
-              <Card className="border border-gray-200 shadow-sm bg-white hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-black">Coins Earned</h3>
-                    <Star className="h-5 w-5 text-yellow-500" />
+                        <div>
+                          <p className="text-xs font-medium text-gray-900">{game.category || 'General'}</p>
+                          <p className="text-xs text-gray-500">
+                            {game.accuracy || 0}% • {game.score || 0} pts
+                          </p>
                   </div>
-                  <CoinDisplay variant="compact" showProgress={true} />
-                </CardContent>
-              </Card>
-
-              {/* Daily Streak */}
-              <Card className="border border-gray-200 shadow-sm bg-white hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-black">Daily Streak</h3>
-                    <Flame className="h-5 w-5 text-orange-500" />
                   </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-black mb-2">
-                      {dailyStats.currentStreak || 0}
+                      <Badge variant="outline" className="text-xs px-1 py-0">
+                        {new Date(game.timestamp || Date.now()).toLocaleDateString()}
+                      </Badge>
                     </div>
-                    <p className="text-sm text-gray-600">Keep it going!</p>
-                    <Progress value={dailyProgress} className="mt-3" />
-                    <p className="text-xs text-gray-500 mt-2">{dailyProgress}% daily tasks complete</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </motion.div>
-
-          {/* Quick Actions */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.8 }}
-            className="mb-12"
-          >
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-black mb-2">Quick Actions</h2>
-              <p className="text-gray-600">Choose your next challenge</p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer group bg-white">
-                <CardContent className="p-6 text-center">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-200 transition-colors">
-                    <Play className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <h3 className="font-semibold text-black mb-2">Quick Play</h3>
-                  <p className="text-sm text-gray-600 mb-4">Start with recommended settings</p>
+                  ))}
+                  <div className="pt-2 border-t border-gray-100">
                   <Button 
                     size="sm" 
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                      variant="ghost" 
+                      className="w-full text-xs h-6 p-0 hover:bg-gray-50"
+                      onClick={() => navigate('/profile')}
+                  >
+                      View All Games
+                      <ArrowRightIcon className="h-3 w-3 ml-1" />
+                  </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <Target className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                  <p className="text-xs text-gray-500 mb-2">No games yet</p>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    className="text-xs"
                     onClick={() => navigate('/play')}
                   >
-                    Play Now
+                    Start First Game
                   </Button>
+                </div>
+              )}
                 </CardContent>
               </Card>
 
-              <Card className="border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer group bg-white">
-                <CardContent className="p-6 text-center">
-                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200 transition-colors">
-                    <Target className="h-6 w-6 text-green-600" />
+          {/* Daily Tasks Preview */}
+          <Card className="glass border-white/20 shadow-lg">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Target className="h-5 w-5 text-green-500" />
+                Today's Tasks
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {dailyTasks.length > 0 ? (
+                <div className="space-y-2">
+                  {dailyTasks.slice(0, 3).map((task, index) => (
+                    <div key={task.id} className="flex items-center gap-2 text-xs">
+                      <div className="flex-shrink-0">
+                        {task.completed ? (
+                          <CheckCircle2 className="h-3 w-3 text-green-500" />
+                        ) : (
+                          <Circle className="h-3 w-3 text-gray-400" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1">
+                          <Target className="h-3 w-3" />
+                          <span className={`truncate ${task.completed ? 'line-through text-gray-500' : 'text-gray-700'}`}>
+                            {task.title}
+                          </span>
+                        </div>
+                        {!task.completed && (
+                          <div className="mt-1">
+                            <div className="w-full bg-gray-200 rounded-full h-1">
+                              <div 
+                                className="bg-green-600 h-1 rounded-full" 
+                                style={{width: `${Math.min((task.currentProgress / task.requirement) * 100, 100)}%`}}
+                              ></div>
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {task.currentProgress}/{task.requirement}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                   </div>
-                  <h3 className="font-semibold text-black mb-2">Custom Game</h3>
-                  <p className="text-sm text-gray-600 mb-4">Choose your own settings</p>
+                  ))}
+                  <div className="pt-2 border-t border-gray-100">
                   <Button 
                     size="sm" 
-                    variant="outline"
-                    className="w-full border-green-600 text-green-600 hover:bg-green-50"
-                    onClick={() => navigate('/play')}
-                  >
-                    Customize
+                      variant="ghost" 
+                      className="w-full text-xs h-6 p-0 hover:bg-gray-50"
+                      onClick={() => navigate('/daily-tasks')}
+                    >
+                      View More
+                      <ArrowRightIcon className="h-3 w-3 ml-1" />
                   </Button>
-                </CardContent>
-              </Card>
-
-              <Card className="border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer group bg-white">
-                <CardContent className="p-6 text-center">
-                  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-200 transition-colors">
-                    <BookOpen className="h-6 w-6 text-purple-600" />
                   </div>
-                  <h3 className="font-semibold text-black mb-2">Training Mode</h3>
-                  <p className="text-sm text-gray-600 mb-4">Practice without pressure</p>
+                </div>
+              ) : (
+                <div className="text-center py-2">
+                  <p className="text-sm text-gray-500 mb-2">No tasks available</p>
                   <Button 
                     size="sm" 
                     variant="outline"
-                    className="w-full border-purple-600 text-purple-600 hover:bg-purple-50"
-                    onClick={() => navigate('/play/training')}
-                  >
-                    Practice
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card className="border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer group bg-white">
-                <CardContent className="p-6 text-center">
-                  <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-orange-200 transition-colors">
-                    <Calendar className="h-6 w-6 text-orange-600" />
-                  </div>
-                  <h3 className="font-semibold text-black mb-2">Daily Tasks</h3>
-                  <p className="text-sm text-gray-600 mb-4">Complete daily challenges</p>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    className="w-full border-orange-600 text-orange-600 hover:bg-orange-50"
+                    className="text-xs"
                     onClick={() => navigate('/daily-tasks')}
                   >
-                    View Tasks
+                    View All Tasks
                   </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Quick Actions */}
+          <Card className="glass border-white/20 shadow-lg">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Zap className="h-5 w-5 text-purple-500" />
+                Quick Actions
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Button 
+                  className="w-full justify-start btn-apple glass border-white/20 hover:border-white/40 hover:shadow-lg" 
+                  variant="outline"
+                  onClick={() => navigate('/play')}
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  Start Game
+                </Button>
+                <Button 
+                  className="w-full justify-start btn-apple glass border-white/20 hover:border-white/40 hover:shadow-lg" 
+                  variant="outline"
+                  onClick={() => navigate('/daily-tasks')}
+                >
+                  <Target className="h-4 w-4 mr-2" />
+                  Daily Tasks
+                </Button>
+                <Button 
+                  className="w-full justify-start btn-apple glass border-white/20 hover:border-white/40 hover:shadow-lg" 
+                  variant="outline"
+                  onClick={() => navigate('/achievements')}
+                >
+                  <Trophy className="h-4 w-4 mr-2" />
+                  Achievements
+                </Button>
+              </div>
                 </CardContent>
               </Card>
             </div>
-          </motion.div>
 
-          {/* Recent Activity */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 1.0 }}
-            className="mb-12"
-          >
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-black mb-2">Recent Activity</h2>
-              <p className="text-gray-600">Your latest game results</p>
-            </div>
-
-            <Card className="border border-gray-200 shadow-sm bg-white">
+        {/* ELO Rank Display */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">Your ELO Ranking</h2>
+          <Card className="glass border-white/20 shadow-lg">
               <CardContent className="p-6">
-                {recentGames.length > 0 ? (
-                  <div className="space-y-4">
-                    {recentGames.slice(0, 3).map((game, index) => (
-                      <motion.div
-                        key={game.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.4, delay: index * 0.1 }}
-                        className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                      >
+              <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                            <Trophy className="h-5 w-5 text-blue-600" />
+                  <div className="p-3 rounded-full bg-gray-100">
+                    <span className="text-3xl">{eloRankDisplay.currentRank.icon}</span>
                           </div>
                           <div>
-                            <div className="font-semibold text-black">
-                              {game.category.charAt(0).toUpperCase() + game.category.slice(1)} Quiz
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              {game.difficulty} • {game.mode} • {new Date(game.completedAt).toLocaleDateString()}
-                            </div>
-                          </div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {eloRankDisplay.currentRank.tier} {eloRankDisplay.currentRank.division}
+                    </h3>
+                    <p className={`text-sm ${getEloRankColor(eloRankDisplay)}`}>ELO Rating: {eloRating}</p>
+                    <p className="text-xs text-gray-500">
+                      {eloRankDisplay.currentRank.description}
+                    </p>
+                    {eloRankDisplay.nextRank && (
+                      <div className="mt-2">
+                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                          <span>Progress to {eloRankDisplay.nextRank.tier} {eloRankDisplay.nextRank.division}</span>
+                          <span>{Math.round(eloRankDisplay.progressToNext)}%</span>
                         </div>
-                        <div className="text-right">
-                          <div className="text-lg font-bold text-black">{game.score}</div>
-                          <div className="text-sm text-gray-600">points</div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                            style={{width: `${eloRankDisplay.progressToNext}%`}}
+                          ></div>
                         </div>
-                      </motion.div>
-                    ))}
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Trophy className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-600 mb-2">No games yet</h3>
-                    <p className="text-gray-500 mb-4">Start your first game to see your results here!</p>
-                    <Button 
-                      onClick={() => navigate('/play')}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      <Play className="mr-2 h-4 w-4" />
-                      Start Playing
-                    </Button>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-gray-900">{totalGames}</div>
+                  <div className="text-sm text-gray-500">Games Played</div>
+                </div>
                   </div>
-                )}
               </CardContent>
             </Card>
-          </motion.div>
-
-          {/* Explore More */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 1.2 }}
-            className="text-center"
-          >
-            <h2 className="text-2xl font-bold text-black mb-4">Explore More</h2>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Button 
-                variant="outline" 
-                className="border-gray-300 text-gray-700 hover:bg-gray-50"
-                onClick={() => navigate('/leaderboards')}
-              >
-                <BarChart3 className="mr-2 h-4 w-4" />
-                Leaderboards
-              </Button>
-              <Button 
-                variant="outline" 
-                className="border-gray-300 text-gray-700 hover:bg-gray-50"
-                onClick={() => navigate('/achievements')}
-              >
-                <Award className="mr-2 h-4 w-4" />
-                Achievements
-              </Button>
-              <Button 
-                variant="outline" 
-                className="border-gray-300 text-gray-700 hover:bg-gray-50"
-                onClick={() => navigate('/analytics')}
-              >
-                <TrendingUp className="mr-2 h-4 w-4" />
-                Analytics
-              </Button>
-              <Button 
-                variant="outline" 
-                className="border-gray-300 text-gray-700 hover:bg-gray-50"
-                onClick={() => navigate('/whats-new')}
-              >
-                <Sparkles className="mr-2 h-4 w-4" />
-                What's New
-              </Button>
-            </div>
-          </motion.div>
         </div>
+
       </div>
     </div>
   );

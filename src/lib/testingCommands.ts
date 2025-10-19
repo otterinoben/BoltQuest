@@ -23,7 +23,7 @@ export interface ChatCommand {
   aliases?: string[];
 }
 
-export type CommandCategory = 'user' | 'achievement' | 'elo' | 'daily' | 'game' | 'system' | 'help';
+export type CommandCategory = 'user' | 'achievement' | 'elo' | 'daily' | 'game' | 'system' | 'help' | 'testing' | 'context' | 'history' | 'notify' | 'scenario';
 
 export interface CommandResult {
   success: boolean;
@@ -455,7 +455,7 @@ export const COMMANDS: ChatCommand[] = [
         type: 'enum',
         required: false,
         description: 'Filter by category',
-        options: ['user', 'achievement', 'elo', 'daily', 'game', 'system', 'help']
+        options: ['user', 'achievement', 'elo', 'daily', 'game', 'system', 'help', 'testing', 'context', 'history', 'notify', 'scenario']
       }
     ],
     category: 'help',
@@ -469,6 +469,122 @@ export const COMMANDS: ChatCommand[] = [
     category: 'help',
     examples: ['/examples'],
     aliases: ['/ex']
+  },
+
+  // ELO Testing Commands
+  {
+    command: '/elo-test',
+    description: 'Test ELO ranking system',
+    parameters: [
+      {
+        name: 'rating',
+        type: 'number',
+        required: false,
+        description: 'ELO rating to test',
+        min: 0,
+        max: 3000
+      }
+    ],
+    category: 'elo',
+    examples: ['/elo-test', '/elo-test 1200', '/elo-test 1500'],
+    aliases: ['/elo test']
+  },
+  {
+    command: '/elo-division',
+    description: 'Set ELO division for testing',
+    parameters: [
+      {
+        name: 'division',
+        type: 'string',
+        required: true,
+        description: 'Division to set (e.g., "Gold III", "Silver I")'
+      }
+    ],
+    category: 'elo',
+    examples: ['/elo-division "Gold III"', '/elo-division "Silver I"'],
+    aliases: ['/elo division']
+  },
+
+  // Comprehensive Testing Commands
+  {
+    command: '/test',
+    description: 'Run comprehensive tests',
+    parameters: [
+      {
+        name: 'testType',
+        type: 'enum',
+        required: false,
+        description: 'Type of test to run',
+        options: ['all', 'dashboard', 'elo', 'daily', 'data']
+      }
+    ],
+    category: 'testing',
+    examples: ['/test', '/test all', '/test dashboard', '/test elo'],
+    aliases: ['/test-all', '/test-dashboard', '/test-elo', '/test-daily', '/test-data']
+  },
+  {
+    command: '/context',
+    description: 'User data context management',
+    parameters: [
+      {
+        name: 'action',
+        type: 'enum',
+        required: false,
+        description: 'Context action to perform',
+        options: ['refresh', 'status', 'reset', 'debug']
+      }
+    ],
+    category: 'context',
+    examples: ['/context', '/context refresh', '/context status', '/context debug'],
+    aliases: ['/context-refresh', '/context-status', '/context-reset', '/context-debug']
+  },
+  {
+    command: '/history',
+    description: 'Game history management',
+    parameters: [
+      {
+        name: 'action',
+        type: 'enum',
+        required: false,
+        description: 'History action to perform',
+        options: ['add', 'clear', 'stats', 'export']
+      }
+    ],
+    category: 'history',
+    examples: ['/history', '/history add', '/history stats', '/history export'],
+    aliases: ['/history-add', '/history-clear', '/history-stats', '/history-export']
+  },
+  {
+    command: '/notify',
+    description: 'Notification system management',
+    parameters: [
+      {
+        name: 'action',
+        type: 'enum',
+        required: false,
+        description: 'Notification action to perform',
+        options: ['test', 'generate', 'clear', 'settings']
+      }
+    ],
+    category: 'notify',
+    examples: ['/notify', '/notify test', '/notify generate', '/notify settings'],
+    aliases: ['/notify-test', '/notify-generate', '/notify-clear', '/notify-settings']
+  },
+  {
+    command: '/scenario',
+    description: 'Set up testing scenarios',
+    parameters: [
+      {
+        name: 'scenario',
+        type: 'enum',
+        required: false,
+        description: 'Scenario to set up',
+        options: ['newuser', 'poweruser', 'casual', 'reset']
+      }
+    ],
+    category: 'scenario',
+    examples: ['/scenario', '/scenario newuser', '/scenario poweruser', '/scenario reset'],
+    aliases: ['/scenario-newuser', '/scenario-poweruser', '/scenario-casual', '/scenario-reset']
   }
 ];
 
@@ -517,7 +633,16 @@ export class CommandParser {
     // Parse parameters
     for (let i = 0; i < command.parameters.length; i++) {
       const param = command.parameters[i];
-      const value = paramParts[i];
+      let value: string;
+
+      // For string parameters, join remaining parts to handle multi-word values
+      if (param.type === 'string' && paramParts.length > i + 1) {
+        // Check if this is a multi-word string parameter
+        const remainingParts = paramParts.slice(i);
+        value = remainingParts.join(' ');
+      } else {
+        value = paramParts[i];
+      }
 
       if (!value && param.required) {
         throw new Error(`Missing required parameter: ${param.name}`);

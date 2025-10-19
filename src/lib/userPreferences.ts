@@ -8,7 +8,6 @@ export interface UserPreferences {
   defaultDifficulty: string;
   defaultMode: 'quick' | 'training' | 'classic';
   defaultTimer: number;
-  autoReplayEnabled: boolean;
   lastUsedSettings: {
     categories: string[];
     difficulty: string;
@@ -79,7 +78,6 @@ export class UserPreferencesManager {
       defaultDifficulty: 'medium',
       defaultMode: 'classic',
       defaultTimer: 45,
-      autoReplayEnabled: false,
       lastUsedSettings: {
         categories: ['tech'],
         difficulty: 'medium',
@@ -320,17 +318,6 @@ export class UserPreferencesManager {
       ...this.preferences.smartDefaults,
       ...settings,
     };
-    this.savePreferences();
-  }
-
-  // Get auto-replay preference
-  getAutoReplayEnabled(): boolean {
-    return this.preferences.autoReplayEnabled;
-  }
-
-  // Set auto-replay preference
-  setAutoReplayEnabled(enabled: boolean): void {
-    this.preferences.autoReplayEnabled = enabled;
     this.savePreferences();
   }
 

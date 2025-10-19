@@ -139,7 +139,13 @@ export const TestingPanel: React.FC<TestingPanelProps> = ({
     dailyTasks: false,
     popupTesting: false,
     gameControls: false,
-    dataManagement: false
+    dataManagement: false,
+    eloRanking: false,
+    userDataContext: false,
+    matchHistory: false,
+    smartNotifications: false,
+    dashboardWidgets: false,
+    comprehensiveTesting: false
   });
 
   // Chat system state
@@ -154,6 +160,72 @@ export const TestingPanel: React.FC<TestingPanelProps> = ({
   const [showChatSuggestions, setShowChatSuggestions] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState(0);
   const [isExecutingCommand, setIsExecutingCommand] = useState(false);
+  
+  // Command help examples
+  const getCommandHelp = (command: string): string => {
+    const helpMap: Record<string, string> = {
+      '/elo': '💡 Try [/elo tech 1200] to set your tech ELO rating!',
+      '/elo-test': '💡 Try [/elo-test 1200] to test ELO ranking!',
+      '/elo-division': '💡 Try [/elo-division "Gold III"] to set ELO division!',
+      '/elo-reset': '💡 Try [/elo-reset tech] to reset tech ELO!',
+      '/elo-reset-all': '💡 Try [/elo-reset-all] to reset all ELO ratings!',
+      '/level': '💡 Try [/level 50] to set your level!',
+      '/xp': '💡 Try [/xp 1000] to add XP!',
+      '/coins': '💡 Try [/coins 5000] to set coins!',
+      '/add-coins': '💡 Try [/add-coins 1000] to add coins!',
+      '/points': '💡 Try [/points 1000] to set points!',
+      '/streak': '💡 Try [/streak 10] to set daily streak!',
+      '/level-up': '💡 Try [/level-up] to force level up!',
+      '/level-down': '💡 Try [/level-down] to force level down!',
+      '/reset-level': '💡 Try [/reset-level] to reset to level 1!',
+      '/fix-profile': '💡 Try [/fix-profile] to fix profile data!',
+      '/reset-currency': '💡 Try [/reset-currency] to reset all currency!',
+      '/achievement-unlock': '💡 Try [/achievement-unlock first_score] to unlock achievement!',
+      '/achievement-reset': '💡 Try [/achievement-reset first_score] to reset achievement!',
+      '/achievement-reset-all': '💡 Try [/achievement-reset-all] to reset all achievements!',
+      '/achievements-list': '💡 Try [/achievements-list] to see all achievements!',
+      '/achievement-bulk-unlock': '💡 Try [/achievement-bulk-unlock 5] to unlock random achievements!',
+      '/daily-complete': '💡 Try [/daily-complete task_1] to complete daily task!',
+      '/daily-complete-all': '💡 Try [/daily-complete-all] to complete all daily tasks!',
+      '/daily-reset': '💡 Try [/daily-reset] to reset daily tasks!',
+      '/daily-generate': '💡 Try [/daily-generate] to generate new daily tasks!',
+      '/game-simulate': '💡 Try [/game-simulate 85] to simulate game with 85% accuracy!',
+      '/game-generate-score': '💡 Try [/game-generate-score 90] to generate game score!',
+      '/reset-all': '💡 Try [/reset-all] to reset all user data!',
+      '/backup-data': '💡 Try [/backup-data] to backup user data!',
+      '/restore-data': '💡 Try [/restore-data] to restore user data!',
+      '/test': '💡 Try [/test all] to run comprehensive tests!',
+      '/test-all': '💡 Try [/test-all] to run all test modules!',
+      '/test-dashboard': '💡 Try [/test-dashboard] to test dashboard!',
+      '/test-elo': '💡 Try [/test-elo] to test ELO system!',
+      '/test-daily': '💡 Try [/test-daily] to test daily tasks!',
+      '/test-data': '💡 Try [/test-data] to test data persistence!',
+      '/context': '💡 Try [/context refresh] to refresh user data context!',
+      '/context-refresh': '💡 Try [/context-refresh] to refresh user data!',
+      '/context-status': '💡 Try [/context-status] to check context status!',
+      '/context-reset': '💡 Try [/context-reset] to reset context!',
+      '/context-debug': '💡 Try [/context-debug] to debug context!',
+      '/history': '💡 Try [/history add] to add test game to history!',
+      '/history-add': '💡 Try [/history-add] to add test game!',
+      '/history-clear': '💡 Try [/history-clear] to clear game history!',
+      '/history-stats': '💡 Try [/history-stats] to view game statistics!',
+      '/history-export': '💡 Try [/history-export] to export game history!',
+      '/notify': '💡 Try [/notify test] to test notifications!',
+      '/notify-test': '💡 Try [/notify-test] to test notification system!',
+      '/notify-generate': '💡 Try [/notify-generate] to generate smart notifications!',
+      '/notify-clear': '💡 Try [/notify-clear] to clear all notifications!',
+      '/notify-settings': '💡 Try [/notify-settings] to view notification settings!',
+      '/scenario': '💡 Try [/scenario newuser] to test new user scenario!',
+      '/scenario-newuser': '💡 Try [/scenario-newuser] to test new user!',
+      '/scenario-poweruser': '💡 Try [/scenario-poweruser] to test power user!',
+      '/scenario-casual': '💡 Try [/scenario-casual] to test casual user!',
+      '/scenario-reset': '💡 Try [/scenario-reset] to reset to default!',
+      '/help': '💡 Try [/help] to see all available commands!',
+      '/commands': '💡 Try [/commands] to see all commands by category!'
+    };
+    
+    return helpMap[command] || `💡 Try [${command}] to use this command!`;
+  };
   
   // Tab + ` sequence tracking
   const [tabPressed, setTabPressed] = useState(false);
@@ -465,6 +537,7 @@ export const TestingPanel: React.FC<TestingPanelProps> = ({
   const executeChatCommand = async (commandInput: string) => {
     if (!commandInput.trim()) return;
 
+    console.log('Executing command:', commandInput); // Debug log
     setIsExecutingCommand(true);
 
     // Add user message
@@ -477,9 +550,24 @@ export const TestingPanel: React.FC<TestingPanelProps> = ({
 
     setChatMessages(prev => [...prev, userMessage]);
 
+    // Extract command name for help message
+    const commandName = commandInput.split(' ')[0];
+    const helpMessage = getCommandHelp(commandName);
+    
+    // Add helpful blue message
+    const helpMsg = {
+      id: `help_${Date.now()}`,
+      type: 'system' as const,
+      content: helpMessage,
+      timestamp: new Date()
+    };
+    
+    setChatMessages(prev => [...prev, helpMsg]);
+
     try {
       // Parse command
       const parsedCommand = commandParser.parse(commandInput);
+      console.log('Parsed command:', parsedCommand); // Debug log
       
       if (!parsedCommand) {
         const errorMessage = {
@@ -494,6 +582,7 @@ export const TestingPanel: React.FC<TestingPanelProps> = ({
 
       // Execute command
       const result = await commandExecutor.executeCommand(parsedCommand);
+      console.log('Command result:', result); // Debug log
       
       const resultMessage = {
         id: `result_${Date.now()}`,
@@ -505,6 +594,7 @@ export const TestingPanel: React.FC<TestingPanelProps> = ({
       setChatMessages(prev => [...prev, resultMessage]);
 
     } catch (error) {
+      console.error('Command execution error:', error); // Debug log
       const errorMessage = {
         id: `error_${Date.now()}`,
         type: 'error' as const,
@@ -1273,6 +1363,509 @@ export const TestingPanel: React.FC<TestingPanelProps> = ({
                   <Trash2 className="h-3 w-3 mr-1" />
                   Reset All Data
                 </Button>
+              </div>
+            )}
+          </div>
+
+          {/* ELO Ranking System Testing - Collapsible */}
+          <div className="space-y-3">
+            <div 
+              className="flex items-center justify-between cursor-pointer"
+              onClick={() => toggleSection('eloRanking')}
+            >
+              <h3 className="text-white font-semibold text-sm flex items-center gap-2">
+                <Crown className="h-4 w-4" />
+                ELO Ranking System
+              </h3>
+              {sectionsExpanded.eloRanking ? 
+                <ChevronUp className="h-4 w-4 text-gray-400" /> : 
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              }
+            </div>
+            
+            {sectionsExpanded.eloRanking && (
+              <div className="pl-4 border-l-2 border-yellow-500 space-y-3">
+                <div className="space-y-2">
+                  <Label className="text-white text-xs">All Ranks</Label>
+                  <div className="grid grid-cols-4 gap-1">
+                    {/* Iron Tier */}
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Iron IV')}
+                      className="h-6 bg-gray-800 hover:bg-gray-700 text-white text-xs"
+                    >
+                      Iron IV
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Iron III')}
+                      className="h-6 bg-gray-800 hover:bg-gray-700 text-white text-xs"
+                    >
+                      Iron III
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Iron II')}
+                      className="h-6 bg-gray-800 hover:bg-gray-700 text-white text-xs"
+                    >
+                      Iron II
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Iron I')}
+                      className="h-6 bg-gray-800 hover:bg-gray-700 text-white text-xs"
+                    >
+                      Iron I
+                    </Button>
+                    
+                    {/* Bronze Tier */}
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Bronze IV')}
+                      className="h-6 bg-amber-600 hover:bg-amber-700 text-white text-xs"
+                    >
+                      Bronze IV
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Bronze III')}
+                      className="h-6 bg-amber-600 hover:bg-amber-700 text-white text-xs"
+                    >
+                      Bronze III
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Bronze II')}
+                      className="h-6 bg-amber-600 hover:bg-amber-700 text-white text-xs"
+                    >
+                      Bronze II
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Bronze I')}
+                      className="h-6 bg-amber-600 hover:bg-amber-700 text-white text-xs"
+                    >
+                      Bronze I
+                    </Button>
+                    
+                    {/* Silver Tier */}
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Silver IV')}
+                      className="h-6 bg-gray-500 hover:bg-gray-600 text-white text-xs"
+                    >
+                      Silver IV
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Silver III')}
+                      className="h-6 bg-gray-500 hover:bg-gray-600 text-white text-xs"
+                    >
+                      Silver III
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Silver II')}
+                      className="h-6 bg-gray-500 hover:bg-gray-600 text-white text-xs"
+                    >
+                      Silver II
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Silver I')}
+                      className="h-6 bg-gray-500 hover:bg-gray-600 text-white text-xs"
+                    >
+                      Silver I
+                    </Button>
+                    
+                    {/* Gold Tier */}
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Gold IV')}
+                      className="h-6 bg-yellow-600 hover:bg-yellow-700 text-white text-xs"
+                    >
+                      Gold IV
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Gold III')}
+                      className="h-6 bg-yellow-600 hover:bg-yellow-700 text-white text-xs"
+                    >
+                      Gold III
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Gold II')}
+                      className="h-6 bg-yellow-600 hover:bg-yellow-700 text-white text-xs"
+                    >
+                      Gold II
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Gold I')}
+                      className="h-6 bg-yellow-600 hover:bg-yellow-700 text-white text-xs"
+                    >
+                      Gold I
+                    </Button>
+                    
+                    {/* Platinum Tier */}
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Platinum IV')}
+                      className="h-6 bg-teal-600 hover:bg-teal-700 text-white text-xs"
+                    >
+                      Plat IV
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Platinum III')}
+                      className="h-6 bg-teal-600 hover:bg-teal-700 text-white text-xs"
+                    >
+                      Plat III
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Platinum II')}
+                      className="h-6 bg-teal-600 hover:bg-teal-700 text-white text-xs"
+                    >
+                      Plat II
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Platinum I')}
+                      className="h-6 bg-teal-600 hover:bg-teal-700 text-white text-xs"
+                    >
+                      Plat I
+                    </Button>
+                    
+                    {/* Diamond Tier */}
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Diamond IV')}
+                      className="h-6 bg-blue-500 hover:bg-blue-600 text-white text-xs"
+                    >
+                      Dia IV
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Diamond III')}
+                      className="h-6 bg-blue-500 hover:bg-blue-600 text-white text-xs"
+                    >
+                      Dia III
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Diamond II')}
+                      className="h-6 bg-blue-500 hover:bg-blue-600 text-white text-xs"
+                    >
+                      Dia II
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Diamond I')}
+                      className="h-6 bg-blue-500 hover:bg-blue-600 text-white text-xs"
+                    >
+                      Dia I
+                    </Button>
+                    
+                    {/* Master Tier */}
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Master')}
+                      className="h-6 bg-purple-600 hover:bg-purple-700 text-white text-xs"
+                    >
+                      Master
+                    </Button>
+                    
+                    {/* Grandmaster Tier */}
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Grandmaster')}
+                      className="h-6 bg-red-600 hover:bg-red-700 text-white text-xs"
+                    >
+                      GM
+                    </Button>
+                    
+                    {/* Challenger Tier */}
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-division Challenger')}
+                      className="h-6 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white text-xs"
+                    >
+                      Challenger
+                    </Button>
+                    
+                    {/* Reset Button */}
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/elo-reset-all')}
+                      className="h-6 bg-gray-700 hover:bg-gray-800 text-white text-xs"
+                    >
+                      Reset
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* User Data Context Testing - Collapsible */}
+          <div className="space-y-3">
+            <div 
+              className="flex items-center justify-between cursor-pointer"
+              onClick={() => toggleSection('userDataContext')}
+            >
+              <h3 className="text-white font-semibold text-sm flex items-center gap-2">
+                <Brain className="h-4 w-4" />
+                User Data Context
+              </h3>
+              {sectionsExpanded.userDataContext ? 
+                <ChevronUp className="h-4 w-4 text-gray-400" /> : 
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              }
+            </div>
+            
+            {sectionsExpanded.userDataContext && (
+              <div className="pl-4 border-l-2 border-blue-500 space-y-3">
+                <div className="space-y-2">
+                  <Label className="text-white text-xs">Context Testing</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/context refresh')}
+                      className="h-8 bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                    >
+                      Refresh Context
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/context status')}
+                      className="h-8 bg-green-600 hover:bg-green-700 text-white text-xs"
+                    >
+                      Check Status
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/context reset')}
+                      className="h-8 bg-red-600 hover:bg-red-700 text-white text-xs"
+                    >
+                      Reset Context
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/context debug')}
+                      className="h-8 bg-purple-600 hover:bg-purple-700 text-white text-xs"
+                    >
+                      Debug Info
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Match History Testing - Collapsible */}
+          <div className="space-y-3">
+            <div 
+              className="flex items-center justify-between cursor-pointer"
+              onClick={() => toggleSection('matchHistory')}
+            >
+              <h3 className="text-white font-semibold text-sm flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Match History
+              </h3>
+              {sectionsExpanded.matchHistory ? 
+                <ChevronUp className="h-4 w-4 text-gray-400" /> : 
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              }
+            </div>
+            
+            {sectionsExpanded.matchHistory && (
+              <div className="pl-4 border-l-2 border-green-500 space-y-3">
+                <div className="space-y-2">
+                  <Label className="text-white text-xs">History Testing</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/history add test')}
+                      className="h-8 bg-green-600 hover:bg-green-700 text-white text-xs"
+                    >
+                      Add Test Game
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/history clear')}
+                      className="h-8 bg-red-600 hover:bg-red-700 text-white text-xs"
+                    >
+                      Clear History
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/history stats')}
+                      className="h-8 bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                    >
+                      View Stats
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/history export')}
+                      className="h-8 bg-purple-600 hover:bg-purple-700 text-white text-xs"
+                    >
+                      Export Data
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Smart Notifications Testing - Collapsible */}
+          <div className="space-y-3">
+            <div 
+              className="flex items-center justify-between cursor-pointer"
+              onClick={() => toggleSection('smartNotifications')}
+            >
+              <h3 className="text-white font-semibold text-sm flex items-center gap-2">
+                <MessageSquare className="h-4 w-4" />
+                Smart Notifications
+              </h3>
+              {sectionsExpanded.smartNotifications ? 
+                <ChevronUp className="h-4 w-4 text-gray-400" /> : 
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              }
+            </div>
+            
+            {sectionsExpanded.smartNotifications && (
+              <div className="pl-4 border-l-2 border-pink-500 space-y-3">
+                <div className="space-y-2">
+                  <Label className="text-white text-xs">Notification Testing</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/notify test')}
+                      className="h-8 bg-pink-600 hover:bg-pink-700 text-white text-xs"
+                    >
+                      Test Notification
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/notify generate')}
+                      className="h-8 bg-purple-600 hover:bg-purple-700 text-white text-xs"
+                    >
+                      Generate Smart
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/notify clear')}
+                      className="h-8 bg-red-600 hover:bg-red-700 text-white text-xs"
+                    >
+                      Clear All
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/notify settings')}
+                      className="h-8 bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                    >
+                      Settings
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Comprehensive Testing Suite - Collapsible */}
+          <div className="space-y-3">
+            <div 
+              className="flex items-center justify-between cursor-pointer"
+              onClick={() => toggleSection('comprehensiveTesting')}
+            >
+              <h3 className="text-white font-semibold text-sm flex items-center gap-2">
+                <Award className="h-4 w-4" />
+                Comprehensive Testing
+              </h3>
+              {sectionsExpanded.comprehensiveTesting ? 
+                <ChevronUp className="h-4 w-4 text-gray-400" /> : 
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              }
+            </div>
+            
+            {sectionsExpanded.comprehensiveTesting && (
+              <div className="pl-4 border-l-2 border-cyan-500 space-y-3">
+                <div className="space-y-2">
+                  <Label className="text-white text-xs">Test Suites</Label>
+                  <div className="grid grid-cols-1 gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/test all')}
+                      className="h-8 bg-cyan-600 hover:bg-cyan-700 text-white text-xs"
+                    >
+                      Run All Tests
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/test dashboard')}
+                      className="h-8 bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                    >
+                      Test Dashboard
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/test elo')}
+                      className="h-8 bg-yellow-600 hover:bg-yellow-700 text-white text-xs"
+                    >
+                      Test ELO System
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/test daily')}
+                      className="h-8 bg-green-600 hover:bg-green-700 text-white text-xs"
+                    >
+                      Test Daily Tasks
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/test data')}
+                      className="h-8 bg-purple-600 hover:bg-purple-700 text-white text-xs"
+                    >
+                      Test Data Flow
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-white text-xs">Quick Scenarios</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/scenario newuser')}
+                      className="h-8 bg-green-600 hover:bg-green-700 text-white text-xs"
+                    >
+                      New User
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/scenario poweruser')}
+                      className="h-8 bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                    >
+                      Power User
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/scenario casual')}
+                      className="h-8 bg-yellow-600 hover:bg-yellow-700 text-white text-xs"
+                    >
+                      Casual User
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => executeChatCommand('/scenario reset')}
+                      className="h-8 bg-red-600 hover:bg-red-700 text-white text-xs"
+                    >
+                      Reset All
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
           </div>

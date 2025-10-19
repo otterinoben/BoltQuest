@@ -43,7 +43,6 @@ export class DashboardWidgetManager {
   // Generate all available widgets
   generateWidgets(): DashboardWidget[] {
     const data = this.getWidgetData();
-    
     this.widgets = [
       this.createQuickActionWidget(data),
       this.createProgressWidget(data),

@@ -10,8 +10,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AudioProvider } from "@/contexts/AudioContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { TestingProvider } from "@/contexts/TestingContext";
-import { TransitionProvider } from "@/contexts/TransitionContext";
-import { PageTransition } from "@/components/transitions/PageTransition";
+import { UserDataProvider } from "@/contexts/UserDataContext";
 import { TestingPanel } from "@/components/TestingPanel";
 import TutorialManager from "@/components/tutorial/TutorialManager";
 import MobileHeader from "@/components/MobileHeader";
@@ -32,14 +31,10 @@ import Help from "./pages/Help";
 import Testing from "./pages/Testing";
 import WhatsNew from "./pages/WhatsNew";
 import BaselineTest from "./pages/BaselineTest";
-import TestCountdown from "./pages/TestCountdown";
-import UltraSimpleCountdown from "./pages/UltraSimpleCountdown";
-import AutoReplayTest from "./pages/AutoReplayTest";
 import NotFound from "./pages/NotFound";
 import { hasUserProfile } from "@/lib/userStorage";
 import { useEffect, useState } from "react";
 import SimpleUserSetup from "@/components/SimpleUserSetup";
-import { SpinnerLoader } from "@/components/loading/LoadingStates";
 
 const queryClient = new QueryClient();
 
@@ -69,7 +64,10 @@ const App = () => {
           <Toaster />
           <Sonner />
           <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 flex items-center justify-center">
-            <SpinnerLoader size="lg" text="Loading BoltQuest..." />
+            <div className="text-center space-y-4">
+              <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+              <p className="text-muted-foreground">Loading BoltQuest...</p>
+            </div>
           </div>
         </TooltipProvider>
       </QueryClientProvider>
@@ -84,7 +82,7 @@ const App = () => {
             <LanguageProvider>
               <TutorialProvider>
                 <TestingProvider>
-                  <TransitionProvider>
+                  <UserDataProvider>
                     <Toaster />
                     <Sonner />
                     <BrowserRouter>
@@ -101,40 +99,35 @@ const App = () => {
                             <div className="flex-1 flex flex-col relative">
                               <MobileHeader />
                               <main className="flex-1">
-                                <PageTransition>
-                                  <Routes>
-                                    <Route path="/" element={<Dashboard />} />
-                                    <Route path="/play" element={<Play />} />
-                                    <Route path="/game" element={<Game />} />
-                                    <Route path="/shop" element={<Shop />} />
-                                    <Route path="/referrals" element={<Referrals />} />
-                                    <Route path="/community" element={<Community />} />
-                                    <Route path="/leaderboards" element={<Leaderboards />} />
-                                    <Route path="/achievements" element={<Achievements />} />
-                                    <Route path="/daily-tasks" element={<DailyTasks />} />
-                                    <Route path="/analytics" element={<Analytics />} />
-                                    <Route path="/profile" element={<Profile />} />
-                                    <Route path="/preferences" element={<Preferences />} />
-                                    <Route path="/help" element={<Help />} />
-                                        <Route path="/testing" element={<Testing />} />
-                                        <Route path="/whats-new" element={<WhatsNew />} />
-                                        <Route path="/baseline-test" element={<BaselineTest />} />
-                                        <Route path="/test-countdown" element={<TestCountdown />} />
-                                        <Route path="/ultra-simple-countdown" element={<UltraSimpleCountdown />} />
-                                        <Route path="/auto-replay-test" element={<AutoReplayTest />} />
-                                        <Route path="*" element={<NotFound />} />
-                                  </Routes>
-                                </PageTransition>
+                                <Routes>
+                                  <Route path="/" element={<Dashboard />} />
+                                  <Route path="/play" element={<Play />} />
+                                  <Route path="/game" element={<Game />} />
+                                  <Route path="/shop" element={<Shop />} />
+                                  <Route path="/referrals" element={<Referrals />} />
+                                  <Route path="/community" element={<Community />} />
+                                  <Route path="/leaderboards" element={<Leaderboards />} />
+                                  <Route path="/achievements" element={<Achievements />} />
+                                  <Route path="/daily-tasks" element={<DailyTasks />} />
+                                  <Route path="/analytics" element={<Analytics />} />
+                                  <Route path="/profile" element={<Profile />} />
+                                  <Route path="/preferences" element={<Preferences />} />
+                                  <Route path="/help" element={<Help />} />
+                                  <Route path="/testing" element={<Testing />} />
+                                  <Route path="/whats-new" element={<WhatsNew />} />
+                                  <Route path="/baseline-test" element={<BaselineTest />} />
+                                  <Route path="*" element={<NotFound />} />
+                                </Routes>
                               </main>
                             </div>
                           </div>
                         </SidebarProvider>
                       )}
+                      <TutorialManager pageId="dashboard" />
+                      <TestingPanel />
+                      <AdminDebugPanel />
                     </BrowserRouter>
-                    <TutorialManager pageId="dashboard" />
-                    <TestingPanel />
-                    <AdminDebugPanel />
-                  </TransitionProvider>
+                  </UserDataProvider>
                 </TestingProvider>
               </TutorialProvider>
             </LanguageProvider>

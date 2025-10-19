@@ -262,14 +262,38 @@ export class EloSystem {
     };
   }
 
-  // Get current ELO rating for a category
-  getCategoryRating(category: string): number {
-    return this.userProfile.categoryRatings[category] || STARTING_RATING;
+  // Set ELO rating for a specific category (for testing)
+  setCategoryRating(category: string, rating: number): void {
+    if (!this.userProfile.categoryRatings) {
+      this.userProfile.categoryRatings = {};
+    }
+    
+    this.userProfile.categoryRatings[category] = rating;
+    
+    // Update overall rating
+    const categoryRatings = Object.values(this.userProfile.categoryRatings);
+    if (categoryRatings.length > 0) {
+      this.userProfile.overallRating = Math.round(
+        categoryRatings.reduce((sum, r) => sum + r, 0) / categoryRatings.length
+      );
+      this.userProfile.currentRating = this.userProfile.overallRating;
+    }
+    
+    this.saveUserProfile();
   }
 
   // Get overall ELO rating
   getOverallRating(): number {
+    // Check if we have category ratings
+    if (!this.userProfile.categoryRatings || Object.keys(this.userProfile.categoryRatings).length === 0) {
+      return STARTING_RATING; // Default rating
+    }
+    
     const categoryRatings = Object.values(this.userProfile.categoryRatings);
+    if (categoryRatings.length === 0) {
+      return STARTING_RATING;
+    }
+    
     return Math.round(
       categoryRatings.reduce((sum, rating) => sum + rating, 0) / categoryRatings.length
     );
@@ -322,6 +346,16 @@ export class EloSystem {
   resetAllRatings(): void {
     this.userProfile = this.createDefaultEloRating();
     this.saveUserProfile();
+  }
+
+  // Initialize ELO for existing users who don't have ELO data
+  initializeForExistingUser(): void {
+    const profile = getUserProfile();
+    if (profile && !profile.eloRating) {
+      console.log('🔄 Initializing ELO data for existing user');
+      this.userProfile = this.createDefaultEloRating();
+      this.saveUserProfile();
+    }
   }
 
   // Initialize ELO from baseline assessment

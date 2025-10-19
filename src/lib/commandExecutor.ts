@@ -10,6 +10,7 @@ import { getCoinBalance } from './coinSystem';
 import { addCoins } from './xpLevelSystem';
 import { getAchievementStats, getAchievements, saveAchievements, refreshAchievements } from './simpleAchievements';
 import { EloSystem } from './eloSystem';
+import { EloRankSystem } from './eloRankSystem';
 import { getCurrentDailyTasks, updateTaskProgress, resetStreak, getDailyTaskStats } from './dailyTaskManager';
 import { getGameHistoryByUserId, saveGameHistory } from './gameHistoryStorage';
 import { toast } from 'sonner';
@@ -75,6 +76,10 @@ export class CommandExecutor {
           return await this.executeEloResetAllCommand();
         case '/elo-simulate':
           return await this.executeEloSimulateCommand(parameters);
+        case '/elo-test':
+          return await this.executeEloTestCommand(parameters);
+        case '/elo-division':
+          return await this.executeEloDivisionCommand(parameters);
 
         // Daily Task Commands
         case '/daily-complete':
@@ -107,6 +112,68 @@ export class CommandExecutor {
           return await this.executeCommandsCommand(parameters);
         case '/examples':
           return await this.executeExamplesCommand();
+
+        // Comprehensive Testing Commands
+        case '/test':
+          return await this.executeTestCommand(parameters);
+        case '/test-all':
+          return await this.executeTestAllCommand();
+        case '/test-dashboard':
+          return await this.executeTestDashboardCommand();
+        case '/test-elo':
+          return await this.executeTestEloCommand();
+        case '/test-daily':
+          return await this.executeTestDailyCommand();
+        case '/test-data':
+          return await this.executeTestDataCommand();
+        
+        // Context Commands
+        case '/context':
+          return await this.executeContextCommand(parameters);
+        case '/context-refresh':
+          return await this.executeContextRefreshCommand();
+        case '/context-status':
+          return await this.executeContextStatusCommand();
+        case '/context-reset':
+          return await this.executeContextResetCommand();
+        case '/context-debug':
+          return await this.executeContextDebugCommand();
+        
+        // History Commands
+        case '/history':
+          return await this.executeHistoryCommand(parameters);
+        case '/history-add':
+          return await this.executeHistoryAddCommand(parameters);
+        case '/history-clear':
+          return await this.executeHistoryClearCommand();
+        case '/history-stats':
+          return await this.executeHistoryStatsCommand();
+        case '/history-export':
+          return await this.executeHistoryExportCommand();
+        
+        // Notification Commands
+        case '/notify':
+          return await this.executeNotifyCommand(parameters);
+        case '/notify-test':
+          return await this.executeNotifyTestCommand();
+        case '/notify-generate':
+          return await this.executeNotifyGenerateCommand();
+        case '/notify-clear':
+          return await this.executeNotifyClearCommand();
+        case '/notify-settings':
+          return await this.executeNotifySettingsCommand();
+        
+        // Scenario Commands
+        case '/scenario':
+          return await this.executeScenarioCommand(parameters);
+        case '/scenario-newuser':
+          return await this.executeScenarioNewUserCommand();
+        case '/scenario-poweruser':
+          return await this.executeScenarioPowerUserCommand();
+        case '/scenario-casual':
+          return await this.executeScenarioCasualCommand();
+        case '/scenario-reset':
+          return await this.executeScenarioResetCommand();
 
         default:
           return {
@@ -476,15 +543,39 @@ export class CommandExecutor {
 
   // ELO Commands
   private async executeEloCommand(params: { category: string; rating: number }): Promise<CommandResult> {
-    const eloSystem = new EloSystem();
-    
-    // This would need to be implemented in the ELO system
-    // For now, return a placeholder response
-    return {
-      success: true,
-      message: `ELO rating for ${params.category} set to ${params.rating}`,
-      data: { category: params.category, rating: params.rating }
-    };
+    try {
+      const eloSystem = new EloSystem();
+      
+      // Initialize ELO data if it doesn't exist
+      eloSystem.initializeForExistingUser();
+      
+      // Set the category rating
+      eloSystem.setCategoryRating(params.category, params.rating);
+      
+      // Get the updated ELO rank display
+      const eloRankDisplay = EloRankSystem.getEloRankDisplay(params.rating, 0);
+      
+      toast.success(`ELO updated for ${params.category}`, {
+        description: `Rating: ${params.rating}, Rank: ${eloRankDisplay.currentRank.tier} ${eloRankDisplay.currentRank.division}`,
+        duration: 3000
+      });
+      
+      return {
+        success: true,
+        message: `ELO rating for ${params.category} set to ${params.rating}. Rank: ${eloRankDisplay.currentRank.tier} ${eloRankDisplay.currentRank.division}`,
+        data: { 
+          category: params.category, 
+          rating: params.rating,
+          rank: eloRankDisplay.currentRank
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to set ELO rating: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'ELO_SET_FAILED'
+      };
+    }
   }
 
   private async executeEloResetCommand(params: { category: string }): Promise<CommandResult> {
@@ -827,6 +918,883 @@ export class CommandExecutor {
 
   clearCommandHistory(): void {
     this.commandHistory = [];
+  }
+
+  // ELO Testing Commands
+  private async executeEloTestCommand(params: { rating?: number }): Promise<CommandResult> {
+    try {
+      console.log('ELO test command called with params:', params);
+      const eloSystem = new EloSystem();
+      const testRating = params.rating || 1200;
+      
+      console.log('Testing ELO with rating:', testRating);
+      
+      // Actually update the user's ELO rating to the test value
+      const profile = getUserProfile();
+      if (!profile) {
+        return {
+          success: false,
+          message: 'No user profile found',
+          error: 'NO_PROFILE'
+        };
+      }
+      
+      // Initialize ELO data if it doesn't exist
+      eloSystem.initializeForExistingUser();
+      
+      // Set all category ratings to the test rating
+      const categories = ['tech', 'business', 'marketing', 'finance', 'general'];
+      categories.forEach(category => {
+        eloSystem.setCategoryRating(category, testRating);
+      });
+      
+      // Get the updated ELO rank display
+      const eloRankDisplay = EloRankSystem.getEloRankDisplay(testRating, 0);
+      console.log('ELO rank display:', eloRankDisplay);
+      
+      toast.success(`ELO updated to ${testRating}`, {
+        description: `Rank: ${eloRankDisplay.currentRank.tier} ${eloRankDisplay.currentRank.division}`,
+        duration: 3000
+      });
+      
+      return {
+        success: true,
+        message: `ELO updated to ${testRating}. Rank: ${eloRankDisplay.currentRank.tier} ${eloRankDisplay.currentRank.division}`,
+        data: { 
+          rating: testRating, 
+          rank: eloRankDisplay.currentRank,
+          progress: eloRankDisplay.progressToNext
+        }
+      };
+    } catch (error) {
+      console.error('ELO test error:', error);
+      return {
+        success: false,
+        message: `ELO test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'ELO_TEST_FAILED'
+      };
+    }
+  }
+
+  private async executeEloDivisionCommand(params: { division?: string }): Promise<CommandResult> {
+    try {
+      const division = params.division;
+      if (!division) {
+        return {
+          success: false,
+          message: 'Division parameter is required (e.g., "Gold III", "Silver I")',
+          error: 'MISSING_DIVISION'
+        };
+      }
+
+      // Complete division mapping based on EloRankSystem
+      const divisionMap: { [key: string]: { minElo: number; maxElo: number; tier: string; division: string } } = {
+        // Iron Tier
+        'iron iv': { minElo: 0, maxElo: 400, tier: 'Iron', division: 'IV' },
+        'iron iii': { minElo: 400, maxElo: 600, tier: 'Iron', division: 'III' },
+        'iron ii': { minElo: 600, maxElo: 800, tier: 'Iron', division: 'II' },
+        'iron i': { minElo: 800, maxElo: 1000, tier: 'Iron', division: 'I' },
+        
+        // Bronze Tier
+        'bronze iv': { minElo: 1000, maxElo: 1200, tier: 'Bronze', division: 'IV' },
+        'bronze iii': { minElo: 1200, maxElo: 1400, tier: 'Bronze', division: 'III' },
+        'bronze ii': { minElo: 1400, maxElo: 1600, tier: 'Bronze', division: 'II' },
+        'bronze i': { minElo: 1600, maxElo: 1800, tier: 'Bronze', division: 'I' },
+        
+        // Silver Tier
+        'silver iv': { minElo: 1800, maxElo: 2000, tier: 'Silver', division: 'IV' },
+        'silver iii': { minElo: 2000, maxElo: 2200, tier: 'Silver', division: 'III' },
+        'silver ii': { minElo: 2200, maxElo: 2400, tier: 'Silver', division: 'II' },
+        'silver i': { minElo: 2400, maxElo: 2600, tier: 'Silver', division: 'I' },
+        
+        // Gold Tier
+        'gold iv': { minElo: 2600, maxElo: 2800, tier: 'Gold', division: 'IV' },
+        'gold iii': { minElo: 2800, maxElo: 3000, tier: 'Gold', division: 'III' },
+        'gold ii': { minElo: 3000, maxElo: 3200, tier: 'Gold', division: 'II' },
+        'gold i': { minElo: 3200, maxElo: 3400, tier: 'Gold', division: 'I' },
+        
+        // Platinum Tier
+        'platinum iv': { minElo: 3400, maxElo: 3600, tier: 'Platinum', division: 'IV' },
+        'platinum iii': { minElo: 3600, maxElo: 3800, tier: 'Platinum', division: 'III' },
+        'platinum ii': { minElo: 3800, maxElo: 4000, tier: 'Platinum', division: 'II' },
+        'platinum i': { minElo: 4000, maxElo: 4200, tier: 'Platinum', division: 'I' },
+        
+        // Diamond Tier
+        'diamond iv': { minElo: 4200, maxElo: 4400, tier: 'Diamond', division: 'IV' },
+        'diamond iii': { minElo: 4400, maxElo: 4600, tier: 'Diamond', division: 'III' },
+        'diamond ii': { minElo: 4600, maxElo: 4800, tier: 'Diamond', division: 'II' },
+        'diamond i': { minElo: 4800, maxElo: 5000, tier: 'Diamond', division: 'I' },
+        
+        // Master Tier
+        'master': { minElo: 5000, maxElo: 6000, tier: 'Master', division: '' },
+        
+        // Grandmaster Tier
+        'grandmaster': { minElo: 6000, maxElo: 7000, tier: 'Grandmaster', division: '' },
+        
+        // Challenger Tier
+        'challenger': { minElo: 7000, maxElo: 10000, tier: 'Challenger', division: '' }
+      };
+      
+      const targetRank = divisionMap[division.toLowerCase()];
+
+      if (!targetRank) {
+        return {
+          success: false,
+          message: `Division not found: ${division}. Available divisions: Iron I-IV, Bronze I-IV, Silver I-IV, Gold I-IV, Platinum I-IV, Diamond I-IV, Master, Grandmaster, Challenger`,
+          error: 'DIVISION_NOT_FOUND'
+        };
+      }
+
+      // Set ELO rating to match the division
+      const targetRating = Math.floor((targetRank.minElo + targetRank.maxElo) / 2);
+      
+      // Initialize ELO system
+      const eloSystem = new EloSystem();
+      
+      // Initialize ELO data if it doesn't exist
+      eloSystem.initializeForExistingUser();
+      
+      // Set all category ratings to the target rating
+      const categories = ['tech', 'business', 'marketing', 'finance', 'general'];
+      categories.forEach(category => {
+        eloSystem.setCategoryRating(category, targetRating);
+      });
+      
+      const eloRankDisplay = EloRankSystem.getEloRankDisplay(targetRating, 0);
+      
+      toast.success(`ELO set to ${targetRating}`, {
+        description: `Rank: ${eloRankDisplay.currentRank.tier} ${eloRankDisplay.currentRank.division}`,
+        duration: 3000
+      });
+      
+      return {
+        success: true,
+        message: `ELO set to ${targetRating}. Rank: ${eloRankDisplay.currentRank.tier} ${eloRankDisplay.currentRank.division}`,
+        data: { 
+          rating: targetRating, 
+          rank: eloRankDisplay.currentRank,
+          progress: eloRankDisplay.progressToNext
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to set ELO division: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'ELO_DIVISION_FAILED'
+      };
+    }
+  }
+
+  // Comprehensive Testing Commands
+  private async executeTestCommand(params: { testType?: string }): Promise<CommandResult> {
+    const testType = params.testType || 'all';
+    
+    switch (testType) {
+      case 'all':
+        return await this.executeTestAllCommand();
+      case 'dashboard':
+        return await this.executeTestDashboardCommand();
+      case 'elo':
+        return await this.executeTestEloCommand();
+      case 'daily':
+        return await this.executeTestDailyCommand();
+      case 'data':
+        return await this.executeTestDataCommand();
+      default:
+        return {
+          success: false,
+          message: `Unknown test type: ${testType}. Available: all, dashboard, elo, daily, data`,
+          error: 'INVALID_TEST_TYPE'
+        };
+    }
+  }
+
+  private async executeTestAllCommand(): Promise<CommandResult> {
+    const results = [];
+    
+    // Test Dashboard
+    const dashboardResult = await this.executeTestDashboardCommand();
+    results.push({ test: 'Dashboard', success: dashboardResult.success });
+    
+    // Test ELO
+    const eloResult = await this.executeTestEloCommand();
+    results.push({ test: 'ELO System', success: eloResult.success });
+    
+    // Test Daily Tasks
+    const dailyResult = await this.executeTestDailyCommand();
+    results.push({ test: 'Daily Tasks', success: dailyResult.success });
+    
+    // Test Data Flow
+    const dataResult = await this.executeTestDataCommand();
+    results.push({ test: 'Data Flow', success: dataResult.success });
+    
+    const allPassed = results.every(r => r.success);
+    
+    return {
+      success: allPassed,
+      message: `Comprehensive test completed. ${results.filter(r => r.success).length}/${results.length} tests passed.`,
+      data: { results }
+    };
+  }
+
+  private async executeTestDashboardCommand(): Promise<CommandResult> {
+    try {
+      const profile = getUserProfile();
+      const dailyTasks = getCurrentDailyTasks();
+      const eloSystem = new EloSystem();
+      
+      // Test data availability
+      const hasProfile = !!profile;
+      const hasDailyTasks = !!dailyTasks;
+      const hasEloData = !!eloSystem.getOverallRating();
+      
+      return {
+        success: hasProfile && hasDailyTasks && hasEloData,
+        message: `Dashboard test: Profile(${hasProfile}) DailyTasks(${hasDailyTasks}) ELO(${hasEloData})`,
+        data: { hasProfile, hasDailyTasks, hasEloData }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Dashboard test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'DASHBOARD_TEST_FAILED'
+      };
+    }
+  }
+
+  private async executeTestEloCommand(): Promise<CommandResult> {
+    try {
+      const eloSystem = new EloSystem();
+      const rating = eloSystem.getOverallRating();
+      const stats = eloSystem.getEloStats();
+      
+      return {
+        success: true,
+        message: `ELO test passed. Rating: ${rating}, Games: ${stats.gamesPlayed}`,
+        data: { rating, stats }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `ELO test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'ELO_TEST_FAILED'
+      };
+    }
+  }
+
+  private async executeTestDailyCommand(): Promise<CommandResult> {
+    try {
+      const dailyTasks = getCurrentDailyTasks();
+      const dailyStats = getDailyTaskStats();
+      
+      return {
+        success: true,
+        message: `Daily tasks test passed. Tasks: ${dailyTasks?.tasks?.length || 0}, Stats: ${!!dailyStats}`,
+        data: { taskCount: dailyTasks?.tasks?.length || 0, hasStats: !!dailyStats }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Daily tasks test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'DAILY_TEST_FAILED'
+      };
+    }
+  }
+
+  private async executeTestDataCommand(): Promise<CommandResult> {
+    try {
+      const profile = getUserProfile();
+      const achievements = getAchievementStats();
+      const dailyStats = getDailyTaskStats();
+      const gameHistory = getGameHistoryByUserId(profile?.id || 'default');
+      
+      return {
+        success: true,
+        message: `Data flow test passed. Profile: ${!!profile}, Achievements: ${achievements.totalUnlocked}, Games: ${gameHistory.length}`,
+        data: { 
+          hasProfile: !!profile, 
+          achievementCount: achievements.totalUnlocked,
+          gameCount: gameHistory.length,
+          hasDailyStats: !!dailyStats
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Data flow test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'DATA_TEST_FAILED'
+      };
+    }
+  }
+
+  // Context Commands
+  private async executeContextCommand(params: { action?: string }): Promise<CommandResult> {
+    const action = params.action || 'status';
+    
+    switch (action) {
+      case 'refresh':
+        return await this.executeContextRefreshCommand();
+      case 'status':
+        return await this.executeContextStatusCommand();
+      case 'reset':
+        return await this.executeContextResetCommand();
+      case 'debug':
+        return await this.executeContextDebugCommand();
+      default:
+        return {
+          success: false,
+          message: `Unknown context action: ${action}. Available: refresh, status, reset, debug`,
+          error: 'INVALID_CONTEXT_ACTION'
+        };
+    }
+  }
+
+  private async executeContextRefreshCommand(): Promise<CommandResult> {
+    try {
+      // Force refresh of all data
+      const profile = getUserProfile();
+      if (!profile) {
+        return { success: false, message: 'No profile found to refresh', error: 'NO_PROFILE' };
+      }
+      
+      // Trigger a data refresh by updating the profile
+      profile.lastUpdated = new Date();
+      saveUserProfile(profile);
+      
+      return {
+        success: true,
+        message: 'User data context refreshed successfully',
+        data: { refreshed: true, timestamp: new Date() }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Context refresh failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'CONTEXT_REFRESH_FAILED'
+      };
+    }
+  }
+
+  private async executeContextStatusCommand(): Promise<CommandResult> {
+    try {
+      const profile = getUserProfile();
+      const dailyTasks = getCurrentDailyTasks();
+      const eloSystem = new EloSystem();
+      
+      return {
+        success: true,
+        message: 'Context status check completed',
+        data: {
+          hasProfile: !!profile,
+          hasDailyTasks: !!dailyTasks,
+          eloRating: eloSystem.getOverallRating(),
+          lastUpdated: profile?.lastUpdated || 'Never'
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Context status check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'CONTEXT_STATUS_FAILED'
+      };
+    }
+  }
+
+  private async executeContextResetCommand(): Promise<CommandResult> {
+    try {
+      // Reset all user data
+      localStorage.removeItem('boltquest_user_profile');
+      localStorage.removeItem('boltquest_achievements');
+      localStorage.removeItem('boltquest_daily_tasks');
+      localStorage.removeItem('boltquest_elo_ratings');
+      localStorage.removeItem('boltquest_game_history');
+      
+      return {
+        success: true,
+        message: 'User data context reset successfully',
+        data: { reset: true, timestamp: new Date() }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Context reset failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'CONTEXT_RESET_FAILED'
+      };
+    }
+  }
+
+  private async executeContextDebugCommand(): Promise<CommandResult> {
+    try {
+      const profile = getUserProfile();
+      const achievements = getAchievementStats();
+      const dailyTasks = getCurrentDailyTasks();
+      const eloSystem = new EloSystem();
+      const gameHistory = getGameHistoryByUserId(profile?.id || 'default');
+      
+      return {
+        success: true,
+        message: 'Context debug information retrieved',
+        data: {
+          profile: profile ? {
+            id: profile.id,
+            username: profile.username,
+            level: profile.level,
+            totalXp: profile.totalXp,
+            coins: profile.coins,
+            lastUpdated: profile.lastUpdated
+          } : null,
+          achievements: achievements,
+          dailyTasks: dailyTasks ? {
+            taskCount: dailyTasks.tasks?.length || 0,
+            completedCount: dailyTasks.tasks?.filter(t => t.completed).length || 0
+          } : null,
+          elo: {
+            rating: eloSystem.getOverallRating(),
+            stats: eloSystem.getEloStats()
+          },
+          gameHistory: {
+            count: gameHistory.length,
+            recent: gameHistory.slice(0, 3)
+          }
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Context debug failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'CONTEXT_DEBUG_FAILED'
+      };
+    }
+  }
+
+  // History Commands
+  private async executeHistoryCommand(params: { action?: string }): Promise<CommandResult> {
+    const action = params.action || 'stats';
+    
+    switch (action) {
+      case 'add':
+        return await this.executeHistoryAddCommand({});
+      case 'clear':
+        return await this.executeHistoryClearCommand();
+      case 'stats':
+        return await this.executeHistoryStatsCommand();
+      case 'export':
+        return await this.executeHistoryExportCommand();
+      default:
+        return {
+          success: false,
+          message: `Unknown history action: ${action}. Available: add, clear, stats, export`,
+          error: 'INVALID_HISTORY_ACTION'
+        };
+    }
+  }
+
+  private async executeHistoryAddCommand(params: { category?: string, score?: number, accuracy?: number }): Promise<CommandResult> {
+    try {
+      const profile = getUserProfile();
+      if (!profile) {
+        return { success: false, message: 'No profile found', error: 'NO_PROFILE' };
+      }
+      
+      const testGame = {
+        id: `test_${Date.now()}`,
+        userId: profile.id,
+        category: params.category || 'tech',
+        difficulty: 'medium',
+        score: params.score || Math.floor(Math.random() * 100) + 50,
+        accuracy: params.accuracy || Math.floor(Math.random() * 30) + 70,
+        questionsAnswered: 10,
+        timeSpent: 300,
+        timestamp: new Date(),
+        gameMode: 'classic'
+      };
+      
+      saveGameHistory(testGame);
+      
+      return {
+        success: true,
+        message: `Test game added to history: ${testGame.category} - ${testGame.score} points`,
+        data: { game: testGame }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to add test game: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'HISTORY_ADD_FAILED'
+      };
+    }
+  }
+
+  private async executeHistoryClearCommand(): Promise<CommandResult> {
+    try {
+      const profile = getUserProfile();
+      if (!profile) {
+        return { success: false, message: 'No profile found', error: 'NO_PROFILE' };
+      }
+      
+      localStorage.removeItem(`boltquest_game_history_${profile.id}`);
+      
+      return {
+        success: true,
+        message: 'Game history cleared successfully',
+        data: { cleared: true, timestamp: new Date() }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to clear history: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'HISTORY_CLEAR_FAILED'
+      };
+    }
+  }
+
+  private async executeHistoryStatsCommand(): Promise<CommandResult> {
+    try {
+      const profile = getUserProfile();
+      if (!profile) {
+        return { success: false, message: 'No profile found', error: 'NO_PROFILE' };
+      }
+      
+      const gameHistory = getGameHistoryByUserId(profile.id);
+      const totalGames = gameHistory.length;
+      const avgScore = totalGames > 0 ? Math.round(gameHistory.reduce((sum, game) => sum + game.score, 0) / totalGames) : 0;
+      const avgAccuracy = totalGames > 0 ? Math.round(gameHistory.reduce((sum, game) => sum + game.accuracy, 0) / totalGames) : 0;
+      const bestScore = totalGames > 0 ? Math.max(...gameHistory.map(game => game.score)) : 0;
+      
+      return {
+        success: true,
+        message: `History stats: ${totalGames} games, Avg Score: ${avgScore}, Avg Accuracy: ${avgAccuracy}%, Best: ${bestScore}`,
+        data: {
+          totalGames,
+          avgScore,
+          avgAccuracy,
+          bestScore,
+          recentGames: gameHistory.slice(0, 5)
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to get history stats: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'HISTORY_STATS_FAILED'
+      };
+    }
+  }
+
+  private async executeHistoryExportCommand(): Promise<CommandResult> {
+    try {
+      const profile = getUserProfile();
+      if (!profile) {
+        return { success: false, message: 'No profile found', error: 'NO_PROFILE' };
+      }
+      
+      const gameHistory = getGameHistoryByUserId(profile.id);
+      const exportData = {
+        userId: profile.id,
+        exportDate: new Date(),
+        gameCount: gameHistory.length,
+        games: gameHistory
+      };
+      
+      const dataStr = JSON.stringify(exportData, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `game_history_${profile.id}_${new Date().toISOString().split('T')[0]}.json`;
+      link.click();
+      
+      URL.revokeObjectURL(url);
+      
+      return {
+        success: true,
+        message: `Game history exported: ${gameHistory.length} games`,
+        data: { exported: true, gameCount: gameHistory.length }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to export history: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'HISTORY_EXPORT_FAILED'
+      };
+    }
+  }
+
+  // Notification Commands
+  private async executeNotifyCommand(params: { action?: string }): Promise<CommandResult> {
+    const action = params.action || 'test';
+    
+    switch (action) {
+      case 'test':
+        return await this.executeNotifyTestCommand();
+      case 'generate':
+        return await this.executeNotifyGenerateCommand();
+      case 'clear':
+        return await this.executeNotifyClearCommand();
+      case 'settings':
+        return await this.executeNotifySettingsCommand();
+      default:
+        return {
+          success: false,
+          message: `Unknown notification action: ${action}. Available: test, generate, clear, settings`,
+          error: 'INVALID_NOTIFY_ACTION'
+        };
+    }
+  }
+
+  private async executeNotifyTestCommand(): Promise<CommandResult> {
+    try {
+      toast.success('Test notification sent!', { duration: 3000 });
+      
+      return {
+        success: true,
+        message: 'Test notification sent successfully',
+        data: { sent: true, timestamp: new Date() }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to send test notification: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'NOTIFY_TEST_FAILED'
+      };
+    }
+  }
+
+  private async executeNotifyGenerateCommand(): Promise<CommandResult> {
+    try {
+      // Generate a smart notification
+      const notifications = [
+        '🎯 You\'re on fire! Complete 3 more games to reach your daily goal!',
+        '🏆 New achievement unlocked: Speed Demon!',
+        '📈 Your ELO rating increased by 25 points!',
+        '🔥 5-day streak! Keep it up!',
+        '💡 Try the tech category to improve your programming knowledge!'
+      ];
+      
+      const randomNotification = notifications[Math.floor(Math.random() * notifications.length)];
+      toast.info(randomNotification, { duration: 5000 });
+      
+      return {
+        success: true,
+        message: 'Smart notification generated and sent',
+        data: { notification: randomNotification, sent: true }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to generate notification: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'NOTIFY_GENERATE_FAILED'
+      };
+    }
+  }
+
+  private async executeNotifyClearCommand(): Promise<CommandResult> {
+    try {
+      // Clear notification storage
+      localStorage.removeItem('boltquest_notifications');
+      
+      return {
+        success: true,
+        message: 'All notifications cleared',
+        data: { cleared: true, timestamp: new Date() }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to clear notifications: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'NOTIFY_CLEAR_FAILED'
+      };
+    }
+  }
+
+  private async executeNotifySettingsCommand(): Promise<CommandResult> {
+    try {
+      const settings = {
+        enabled: true,
+        streakReminders: true,
+        achievementAlerts: true,
+        learningInsights: true,
+        milestoneCelebrations: true,
+        socialUpdates: false
+      };
+      
+      return {
+        success: true,
+        message: 'Notification settings retrieved',
+        data: { settings }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to get notification settings: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'NOTIFY_SETTINGS_FAILED'
+      };
+    }
+  }
+
+  // Scenario Commands
+  private async executeScenarioCommand(params: { scenario?: string }): Promise<CommandResult> {
+    const scenario = params.scenario || 'newuser';
+    
+    switch (scenario) {
+      case 'newuser':
+        return await this.executeScenarioNewUserCommand();
+      case 'poweruser':
+        return await this.executeScenarioPowerUserCommand();
+      case 'casual':
+        return await this.executeScenarioCasualCommand();
+      case 'reset':
+        return await this.executeScenarioResetCommand();
+      default:
+        return {
+          success: false,
+          message: `Unknown scenario: ${scenario}. Available: newuser, poweruser, casual, reset`,
+          error: 'INVALID_SCENARIO'
+        };
+    }
+  }
+
+  private async executeScenarioNewUserCommand(): Promise<CommandResult> {
+    try {
+      // Reset to new user state
+      const newUserProfile = {
+        id: 'test_new_user',
+        username: 'NewUser',
+        email: 'newuser@test.com',
+        level: 1,
+        totalXp: 0,
+        coins: 100,
+        points: 0,
+        streak: 0,
+        statistics: {
+          totalGamesPlayed: 0,
+          bestScore: 0,
+          averageAccuracy: 0,
+          totalCorrectAnswers: 0
+        },
+        preferences: {
+          theme: 'light',
+          soundEnabled: true,
+          musicEnabled: true,
+          notificationsEnabled: true,
+          defaultCategory: 'general',
+          defaultDifficulty: 'easy',
+          defaultTimer: 30,
+          autoPause: false,
+          showHints: true,
+          language: 'en'
+        },
+        createdAt: new Date(),
+        lastActive: new Date(),
+        lastUpdated: new Date()
+      };
+      
+      saveUserProfile(newUserProfile);
+      
+      return {
+        success: true,
+        message: 'New user scenario set up successfully',
+        data: { scenario: 'newuser', profile: newUserProfile }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to set up new user scenario: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'SCENARIO_NEWUSER_FAILED'
+      };
+    }
+  }
+
+  private async executeScenarioPowerUserCommand(): Promise<CommandResult> {
+    try {
+      const profile = getUserProfile();
+      if (!profile) {
+        return { success: false, message: 'No profile found', error: 'NO_PROFILE' };
+      }
+      
+      // Set up power user state
+      profile.level = 50;
+      profile.totalXp = 50000;
+      profile.coins = 10000;
+      profile.points = 5000;
+      profile.streak = 30;
+      profile.statistics = {
+        totalGamesPlayed: 500,
+        bestScore: 1000,
+        averageAccuracy: 95,
+        totalCorrectAnswers: 2500
+      };
+      
+      saveUserProfile(profile);
+      
+      return {
+        success: true,
+        message: 'Power user scenario set up successfully',
+        data: { scenario: 'poweruser', profile }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to set up power user scenario: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'SCENARIO_POWERUSER_FAILED'
+      };
+    }
+  }
+
+  private async executeScenarioCasualCommand(): Promise<CommandResult> {
+    try {
+      const profile = getUserProfile();
+      if (!profile) {
+        return { success: false, message: 'No profile found', error: 'NO_PROFILE' };
+      }
+      
+      // Set up casual user state
+      profile.level = 10;
+      profile.totalXp = 2000;
+      profile.coins = 500;
+      profile.points = 200;
+      profile.streak = 3;
+      profile.statistics = {
+        totalGamesPlayed: 25,
+        bestScore: 300,
+        averageAccuracy: 75,
+        totalCorrectAnswers: 150
+      };
+      
+      saveUserProfile(profile);
+      
+      return {
+        success: true,
+        message: 'Casual user scenario set up successfully',
+        data: { scenario: 'casual', profile }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to set up casual user scenario: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'SCENARIO_CASUAL_FAILED'
+      };
+    }
+  }
+
+  private async executeScenarioResetCommand(): Promise<CommandResult> {
+    try {
+      // Reset all data
+      localStorage.clear();
+      
+      return {
+        success: true,
+        message: 'All scenarios and data reset successfully',
+        data: { reset: true, timestamp: new Date() }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to reset scenarios: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: 'SCENARIO_RESET_FAILED'
+      };
+    }
   }
 }
 
