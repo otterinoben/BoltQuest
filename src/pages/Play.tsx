@@ -49,6 +49,7 @@ import { EloSystem } from '@/lib/eloSystem';
 import { userPreferencesManager, SmartRecommendation } from '@/lib/userPreferences';
 import { QuickStartCard } from '@/components/play/QuickStartCard';
 import { ProgressiveDisclosure } from '@/components/play/ProgressiveDisclosure';
+import { TrueFalseGame } from '@/components/game/TrueFalseGame';
 import { HelpTrigger } from '@/components/help/HelpTrigger';
 
 // Define categories with icons
@@ -73,7 +74,7 @@ const Play = () => {
   const [searchParams] = useSearchParams();
   const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | 'custom'>('medium');
-  const [mode, setMode] = useState<'quick' | 'training' | 'classic'>('classic');
+  const [mode, setMode] = useState<'quick' | 'training' | 'classic' | 'truefalse'>('classic');
   const [timerPreset, setTimerPreset] = useState<number>(45);
   const [showWizard, setShowWizard] = useState(false);
   const [favorites, setFavorites] = useState<Array<{id: string, name: string, category: Category, difficulty: Difficulty | 'custom', mode: 'quick' | 'training' | 'classic', timer: number}>>([]);
@@ -213,6 +214,18 @@ const Play = () => {
   };
 
   const startGame = () => {
+    if (mode === 'truefalse') {
+      // True/False mode - require at least one category
+      if (selectedCategories.length === 0) {
+        return;
+      }
+      
+      // True/False mode - pass selected categories
+      const categoriesParam = `categories=${selectedCategories.join(',')}`;
+      navigate(`/game?mode=truefalse&${categoriesParam}`);
+      return;
+    }
+
     if (selectedCategories.length === 0) {
       return;
     }
@@ -318,7 +331,7 @@ const Play = () => {
                         exit={{ opacity: 0, y: 5 }}
                         className="text-xs text-red-500 font-medium text-center leading-tight whitespace-nowrap"
                       >
-                        Please select at least one category
+                        {mode === 'truefalse' ? 'Select topics for Fact Check questions' : 'Please select at least one category'}
                       </motion.p>
                     ) : (
                       <motion.div
@@ -488,6 +501,20 @@ const Play = () => {
                         <div className="flex items-center gap-2">
                           <BookOpen className="h-3 w-3" />
                           <span>Training</span>
+                        </div>
+                      </Button>
+                      <Button
+                        variant={mode === 'truefalse' ? "default" : "outline"}
+                        className={`w-full justify-start h-auto p-2 text-xs ${
+                          mode === 'truefalse'
+                            ? 'bg-orange-600 text-white hover:bg-orange-700'
+                            : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                        onClick={() => setMode('truefalse')}
+                      >
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-3 w-3" />
+                          <span>Fact Check</span>
                         </div>
                       </Button>
                     </div>

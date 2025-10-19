@@ -77,10 +77,10 @@ export const GameOverScreen: React.FC<GameOverScreenProps> = ({
 
   const eloRewards = eloRewardsSystem.calculateEloRewards(eloPerformanceData);
   
-  // Calculate ELO rank display
+  // Calculate ELO rank display with error handling
   const eloRankDisplay = EloRankSystem.getEloRankDisplay(
-    eloRewards.newElo, 
-    eloRewards.eloChange
+    eloRewards.newElo || 1000, 
+    eloRewards.eloChange || 0
   );
 
   // Dynamic primary stat based on performance
@@ -243,7 +243,9 @@ export const GameOverScreen: React.FC<GameOverScreenProps> = ({
               className="space-y-2 sm:space-y-3"
             >
               {/* Compact ELO Rank Card */}
-              <EloRankCard eloRankDisplay={eloRankDisplay} />
+              {eloRankDisplay && eloRankDisplay.currentRank && (
+                <EloRankCard eloRankDisplay={eloRankDisplay} />
+              )}
               
               {/* Performance Summary */}
               <motion.div

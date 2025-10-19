@@ -43,6 +43,7 @@ import { smartPauseSystem } from '@/lib/smartPauseSystem';
 import { HelpTrigger } from '@/components/help/HelpTrigger';
 import { CountdownTimer } from '@/components/loading/CountdownTimer';
 import { GameOverScreen } from '@/components/game/GameOverScreen';
+import { TrueFalseGame } from '@/components/game/TrueFalseGame';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TRANSITION_VARIANTS } from '@/lib/animations';
 
@@ -60,8 +61,8 @@ const Game = () => {
   const taskTitle = searchParams.get("taskTitle");
 
   // Validate parameters and provide fallbacks
-  const validCategory = mockQuestions[category] ? category : "tech";
-  const validDifficulty = mockQuestions[validCategory]?.[difficulty] ? difficulty : "medium";
+  const validCategory = mode === 'truefalse' ? 'general' : (mockQuestions[category] ? category : "tech");
+  const validDifficulty = mode === 'truefalse' ? 'medium' : (mockQuestions[validCategory]?.[difficulty] ? difficulty : "medium");
 
   // Load user preferences for hints and auto-pause
   const [userPreferences, setUserPreferences] = useState({
@@ -201,8 +202,8 @@ const Game = () => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [userPreferences.autoPause, gameState.isPaused, showGameOver]);
 
-  const questions = mockQuestions[validCategory][validDifficulty];
-  const totalQuestions = questions.length;
+  const questions = mode === 'truefalse' ? [] : mockQuestions[validCategory][validDifficulty];
+  const totalQuestions = mode === 'truefalse' ? 20 : questions.length;
 
   // Handle hint usage
   const handleHint = () => {
@@ -327,8 +328,10 @@ const Game = () => {
     setHintUsed(false);
   };
 
-  // Initialize question pool with randomization
-  const [questionPool] = useState(() => createQuestionPool(questions, DEFAULT_RANDOMIZATION_CONFIG));
+  // Initialize question pool with randomization (skip for True/False mode)
+  const [questionPool] = useState(() => 
+    mode === 'truefalse' ? null : createQuestionPool(questions, DEFAULT_RANDOMIZATION_CONFIG)
+  );
   const [randomizedQuestions, setRandomizedQuestions] = useState<RandomizedQuestion[]>([]);
   const [currentRandomizedQuestion, setCurrentRandomizedQuestion] = useState<RandomizedQuestion | null>(null);
 
@@ -358,6 +361,11 @@ const Game = () => {
   // Initialize randomized questions on component mount
   useEffect(() => {
     const initializeQuestions = () => {
+      if (mode === 'truefalse' || !questionPool) {
+        // Skip initialization for True/False mode
+        return;
+      }
+      
       const randomized = [];
       for (let i = 0; i < Math.min(totalQuestions, 20); i++) {
         randomized.push(questionPool.getNextQuestion());
@@ -367,7 +375,7 @@ const Game = () => {
     };
 
     initializeQuestions();
-  }, [questionPool, totalQuestions]);
+  }, [questionPool, totalQuestions, mode]);
 
   // Update current question when game state changes
   useEffect(() => {
@@ -446,7 +454,7 @@ const Game = () => {
     }
   }, [mode, showGameOver, gameState.isPaused, gameStarted]);
 
-  const currentQuestion = currentRandomizedQuestion || questions[gameState.currentQuestion % questions.length];
+  const currentQuestion = mode === 'truefalse' ? null : (currentRandomizedQuestion || questions[gameState.currentQuestion % questions.length]);
 
   const handleAnswer = (answerIndex: number) => {
     if (showFeedback) return;
@@ -1063,6 +1071,34 @@ const Game = () => {
         consecutiveStats={consecutiveStats}
         totalTime={totalTime}
         onAutoReplay={handleAutoReplay}
+      />
+    );
+  }
+
+  // Handle True/False mode
+  if (mode === 'truefalse') {
+    // Get selected categories from URL params or use default
+    const categoriesParam = searchParams.get('categories');
+    const selectedCategories = categoriesParam ? categoriesParam.split(',') : ['general'];
+    
+    return (
+      <TrueFalseGame
+        selectedCategories={selectedCategories}
+        onComplete={(results) => {
+          // Convert True/False results to game state format
+          const correctAnswers = results.filter(r => r.isCorrect).length;
+          const totalPoints = results.reduce((sum, r) => sum + r.pointsEarned, 0);
+          
+          // Set game over state
+          setGameState(prev => ({
+            ...prev,
+            score: totalPoints,
+            questionsAnswered: results.length,
+            correctAnswers: correctAnswers
+          }));
+          setShowGameOver(true);
+        }}
+        onQuit={() => navigate('/play')}
       />
     );
   }
