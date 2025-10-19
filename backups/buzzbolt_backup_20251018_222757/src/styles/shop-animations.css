@@ -1,0 +1,202 @@
+/* Shop Animations */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(34, 197, 94, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.6);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes coin-sparkle {
+  0% {
+    transform: rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: rotate(180deg) scale(1.2);
+    opacity: 0.8;
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes rarity-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+  }
+}
+
+/* Shop Item Card Animations */
+.shop-item-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.shop-item-card:hover {
+  transform: translateY(-8px) scale(1.02);
+}
+
+.shop-item-card.legendary {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.shop-item-card.epic {
+  animation: glow 3s ease-in-out infinite;
+}
+
+/* Rarity-specific animations */
+.rarity-common {
+  border-color: #e5e7eb;
+}
+
+.rarity-rare {
+  border-color: #3b82f6;
+  animation: glow 4s ease-in-out infinite;
+}
+
+.rarity-epic {
+  border-color: #8b5cf6;
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.rarity-legendary {
+  border-color: #f59e0b;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Coin animations */
+.coin-animate {
+  animation: coin-sparkle 0.6s ease-in-out;
+}
+
+.coin-bounce {
+  animation: bounce 1s ease-in-out;
+}
+
+/* Unlock animation effects */
+.unlock-particle {
+  animation: float 2s ease-in-out infinite;
+}
+
+.unlock-glow {
+  animation: glow 1s ease-in-out infinite;
+}
+
+/* Button hover effects */
+.shop-button {
+  transition: all 0.2s ease-in-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.shop-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.shop-button:hover::before {
+  left: 100%;
+}
+
+/* Tab animations */
+.shop-tab {
+  transition: all 0.2s ease-in-out;
+  position: relative;
+}
+
+.shop-tab::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: #10b981;
+  transition: all 0.3s ease-in-out;
+  transform: translateX(-50%);
+}
+
+.shop-tab.active::after {
+  width: 100%;
+}
+
+/* Loading shimmer effect */
+.shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Premium item glow */
+.premium-glow {
+  position: relative;
+}
+
+.premium-glow::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #f59e0b, #fbbf24, #f59e0b);
+  border-radius: inherit;
+  z-index: -1;
+  animation: glow 2s ease-in-out infinite;
+}
+
+/* Responsive animations */
+@media (prefers-reduced-motion: reduce) {
+  .shop-item-card,
+  .shop-button,
+  .shop-tab,
+  .coin-animate,
+  .coin-bounce,
+  .unlock-particle,
+  .unlock-glow,
+  .premium-glow::before {
+    animation: none;
+    transition: none;
+  }
+}
+

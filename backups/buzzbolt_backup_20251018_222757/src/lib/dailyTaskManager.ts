@@ -1,0 +1,387 @@
+/**
+ * Daily Task Manager
+ * Handles daily task storage, progress tracking, and streak management
+ */
+
+import { DailyTask, DailyTaskSet, DailyTaskStats, DailyTaskRewards } from '@/types/dailyTasks';
+import { generateDailyTaskSet, generateCompletionTask, getCurrentDate, isNewDay, rerollTask } from './dailyTaskGenerator';
+import { addXp, calculateXpReward, getUserLevelProgress } from './xpLevelSystem';
+import { awardCoinsForDailyTask, awardCoinsForAllTasksComplete } from './coinSystem';
+
+const STORAGE_KEY = 'buzzbolt_daily_tasks';
+const STREAK_STORAGE_KEY = 'buzzbolt_daily_streak';
+const STATS_STORAGE_KEY = 'buzzbolt_daily_stats';
+
+// Default rewards configuration
+const DEFAULT_REWARDS: DailyTaskRewards = {
+  baseXp: 50,
+  streakMultiplier: 1.2,
+  completionBonus: 200,
+  gracePeriodCost: 100
+};
+
+/**
+ * Get current daily task set
+ */
+export const getCurrentDailyTasks = (): DailyTaskSet | null => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const taskSet = JSON.parse(stored);
+      
+      // Check if it's a new day
+      if (isNewDay(taskSet.date)) {
+        return generateNewDailyTaskSet();
+      }
+      
+      return taskSet;
+    }
+    
+    // No tasks exist, generate new ones
+    return generateNewDailyTaskSet();
+  } catch (error) {
+    console.error('Error loading daily tasks:', error);
+    return generateNewDailyTaskSet();
+  }
+};
+
+/**
+ * Generate new daily task set
+ */
+const generateNewDailyTaskSet = (): DailyTaskSet => {
+  const date = getCurrentDate();
+  const tasks = generateDailyTaskSet(date);
+  const completionTask = generateCompletionTask();
+  
+  const taskSet: DailyTaskSet = {
+    id: `daily_${date}`,
+    date,
+    tasks,
+    completionTask,
+    completed: false,
+    streakCount: getCurrentStreak(),
+    totalXpEarned: 0,
+    totalPointsEarned: 0
+  };
+  
+  saveDailyTaskSet(taskSet);
+  return taskSet;
+};
+
+/**
+ * Save daily task set
+ */
+const saveDailyTaskSet = (taskSet: DailyTaskSet): void => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(taskSet));
+  } catch (error) {
+    console.error('Error saving daily tasks:', error);
+  }
+};
+
+/**
+ * Update task progress
+ */
+export const updateTaskProgress = (taskId: string, progress: number): boolean => {
+  try {
+    const taskSet = getCurrentDailyTasks();
+    if (!taskSet) return false;
+    
+    // Find and update the task
+    const task = taskSet.tasks.find(t => t.id === taskId) || taskSet.completionTask;
+    if (!task) return false;
+    
+    task.currentProgress = Math.min(progress, task.requirement);
+    task.completed = task.currentProgress >= task.requirement;
+    
+    if (task.completed && !task.completedAt) {
+      task.completedAt = Date.now();
+      
+      console.log('Task completed:', task.title, 'Points reward:', task.pointsReward);
+      
+      // Award coins for task completion
+      awardCoinsForDailyTask(taskId, task.difficulty);
+      
+      // Update totals
+      taskSet.totalXpEarned += task.xpReward;
+      taskSet.totalPointsEarned += task.pointsReward;
+      
+      console.log('Updated task set totals - Points:', taskSet.totalPointsEarned, 'XP:', taskSet.totalXpEarned);
+      
+      // Add XP to leveling system
+      const xpResult = addXp(task.xpReward);
+      
+      // Check if all tasks are completed
+      const allTasksCompleted = taskSet.tasks.every(t => t.completed) && 
+                               taskSet.completionTask?.completed;
+      
+      if (allTasksCompleted && !taskSet.completed) {
+        taskSet.completed = true;
+        taskSet.completedAt = Date.now();
+        
+        // Award bonus coins for completing all tasks
+        awardCoinsForAllTasksComplete();
+        
+        updateStreak();
+      }
+    }
+    
+    saveDailyTaskSet(taskSet);
+    updateDailyStats(); // Update stats after saving
+    return true;
+  } catch (error) {
+    console.error('Error updating task progress:', error);
+    return false;
+  }
+};
+
+/**
+ * Save daily task set to storage
+ */
+const saveDailyTasks = (taskSet: DailyTaskSet): void => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(taskSet));
+  } catch (error) {
+    console.error('Error saving daily tasks:', error);
+  }
+};
+
+/**
+ * Reroll a specific task
+ */
+export const rerollDailyTask = (taskId: string): boolean => {
+  try {
+    const taskSet = getCurrentDailyTasks();
+    if (!taskSet) {
+      console.log('No task set found');
+      return false;
+    }
+    
+    // Find the task to reroll
+    const taskIndex = taskSet.tasks.findIndex(task => task.id === taskId);
+    if (taskIndex === -1) {
+      console.log('Task not found:', taskId);
+      return false;
+    }
+    
+    const currentTask = taskSet.tasks[taskIndex];
+    console.log('Rerolling task:', currentTask.title, 'Difficulty:', currentTask.difficulty);
+    
+    // Don't allow rerolling completed tasks
+    if (currentTask.completed) {
+      console.log('Cannot reroll completed task');
+      return false;
+    }
+    
+    // Generate new task with same difficulty
+    const newTask = rerollTask(taskId, currentTask.difficulty);
+    if (!newTask) {
+      console.log('Failed to generate new task');
+      return false;
+    }
+    
+    console.log('New task generated:', newTask.title);
+    
+    // Replace the task
+    taskSet.tasks[taskIndex] = newTask;
+    
+    // Save updated task set
+    saveDailyTasks(taskSet);
+    
+    console.log('Task rerolled successfully');
+    return true;
+  } catch (error) {
+    console.error('Error rerolling daily task:', error);
+    return false;
+  }
+};
+
+/**
+ * Get current streak
+ */
+export const getCurrentStreak = (): number => {
+  try {
+    const stored = localStorage.getItem(STREAK_STORAGE_KEY);
+    return stored ? parseInt(stored) : 0;
+  } catch (error) {
+    console.error('Error loading streak:', error);
+    return 0;
+  }
+};
+
+/**
+ * Update streak
+ */
+const updateStreak = (): void => {
+  try {
+    const currentStreak = getCurrentStreak();
+    const newStreak = currentStreak + 1;
+    localStorage.setItem(STREAK_STORAGE_KEY, newStreak.toString());
+    
+    // Update stats
+    updateDailyStats();
+  } catch (error) {
+    console.error('Error updating streak:', error);
+  }
+};
+
+/**
+ * Reset streak (when grace period is used or streak is broken)
+ */
+export const resetStreak = (): void => {
+  try {
+    localStorage.setItem(STREAK_STORAGE_KEY, '0');
+    updateDailyStats();
+  } catch (error) {
+    console.error('Error resetting streak:', error);
+  }
+};
+
+/**
+ * Get daily task stats
+ */
+export const getDailyTaskStats = (): DailyTaskStats => {
+  try {
+    const stored = localStorage.getItem(STATS_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+    
+    // Return default stats
+    return {
+      currentStreak: getCurrentStreak(),
+      longestStreak: 0,
+      totalTasksCompleted: 0,
+      totalXpEarned: 0,
+      totalPointsEarned: 0,
+      lastCompletedDate: null,
+      gracePeriodUsed: false,
+      gracePeriodAvailable: true
+    };
+  } catch (error) {
+    console.error('Error loading daily task stats:', error);
+    return {
+      currentStreak: getCurrentStreak(),
+      longestStreak: 0,
+      totalTasksCompleted: 0,
+      totalXpEarned: 0,
+      totalPointsEarned: 0,
+      lastCompletedDate: null,
+      gracePeriodUsed: false,
+      gracePeriodAvailable: true
+    };
+  }
+};
+
+/**
+ * Update daily stats
+ */
+const updateDailyStats = (): void => {
+  try {
+    const stats = getDailyTaskStats();
+    const currentStreak = getCurrentStreak();
+    const taskSet = getCurrentDailyTasks();
+    
+    stats.currentStreak = currentStreak;
+    stats.longestStreak = Math.max(stats.longestStreak, currentStreak);
+    
+    // Update points and XP from current task set
+    if (taskSet) {
+      stats.totalPointsEarned = taskSet.totalPointsEarned;
+      stats.totalXpEarned = taskSet.totalXpEarned;
+    }
+    
+    localStorage.setItem(STATS_STORAGE_KEY, JSON.stringify(stats));
+  } catch (error) {
+    console.error('Error updating daily stats:', error);
+  }
+};
+
+/**
+ * Use grace period
+ */
+export const useGracePeriod = (): boolean => {
+  try {
+    const stats = getDailyTaskStats();
+    if (!stats.gracePeriodAvailable || stats.gracePeriodUsed) {
+      return false;
+    }
+    
+    stats.gracePeriodUsed = true;
+    stats.gracePeriodAvailable = false;
+    
+    localStorage.setItem(STATS_STORAGE_KEY, JSON.stringify(stats));
+    return true;
+  } catch (error) {
+    console.error('Error using grace period:', error);
+    return false;
+  }
+};
+
+/**
+ * Calculate XP multiplier based on streak
+ */
+export const getStreakMultiplier = (): number => {
+  const streak = getCurrentStreak();
+  if (streak <= 1) return 1.0;
+  if (streak <= 3) return 1.2;
+  if (streak <= 7) return 1.5;
+  if (streak <= 14) return 2.0;
+  return 2.5;
+};
+
+/**
+ * Calculate total XP reward for completed tasks
+ */
+export const calculateTotalXpReward = (taskSet: DailyTaskSet): number => {
+  const baseXp = taskSet.totalXpEarned;
+  const streakMultiplier = getStreakMultiplier();
+  const completionBonus = taskSet.completed ? DEFAULT_REWARDS.completionBonus : 0;
+  
+  return Math.floor(baseXp * streakMultiplier) + completionBonus;
+};
+
+/**
+ * Check if daily tasks are available
+ */
+export const areDailyTasksAvailable = (): boolean => {
+  const taskSet = getCurrentDailyTasks();
+  return taskSet !== null;
+};
+
+/**
+ * Get task completion percentage
+ */
+export const getTaskCompletionPercentage = (taskSet: DailyTaskSet): number => {
+  const totalTasks = taskSet.tasks.length + (taskSet.completionTask ? 1 : 0);
+  const completedTasks = taskSet.tasks.filter(t => t.completed).length + 
+                        (taskSet.completionTask?.completed ? 1 : 0);
+  
+  return Math.round((completedTasks / totalTasks) * 100);
+};
+
+/**
+ * Get next reset time
+ */
+export const getNextResetTime = (): Date => {
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+  return tomorrow;
+};
+
+/**
+ * Get time until reset
+ */
+export const getTimeUntilReset = (): { hours: number; minutes: number; seconds: number } => {
+  const now = new Date();
+  const resetTime = getNextResetTime();
+  const diff = resetTime.getTime() - now.getTime();
+  
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+  
+  return { hours, minutes, seconds };
+};

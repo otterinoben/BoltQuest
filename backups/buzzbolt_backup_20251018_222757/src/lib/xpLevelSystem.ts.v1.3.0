@@ -1,0 +1,271 @@
+import { getUserProfile, saveUserProfile } from './userStorage';
+
+export interface LevelData {
+  level: number;
+  xpRequired: number;
+  totalXpRequired: number;
+  rewards: {
+    coins: number;
+    unlocks: string[];
+  };
+}
+
+export interface UserProgress {
+  level: number;
+  currentXp: number;
+  totalXp: number;
+  coins: number;
+  points: number;
+  streak: number;
+  achievements: string[];
+}
+
+// Level progression formula: XP required = level * 100 + (level - 1) * 50
+export const calculateLevelData = (level: number): LevelData => {
+  const xpRequired = level * 100 + (level - 1) * 50;
+  const totalXpRequired = level === 1 ? 0 : Array.from({ length: level - 1 }, (_, i) => 
+    (i + 1) * 100 + i * 50
+  ).reduce((sum, xp) => sum + xp, 0);
+  
+  return {
+    level,
+    xpRequired,
+    totalXpRequired,
+    rewards: {
+      coins: level * 50,
+      unlocks: level >= 5 ? ['premium_features'] : level >= 10 ? ['advanced_analytics'] : []
+    }
+  };
+};
+
+export const calculateLevelFromXp = (totalXp: number): { level: number; currentXp: number; xpToNext: number } => {
+  let level = 1;
+  let xpUsed = 0;
+  
+  while (true) {
+    const nextLevelXp = level * 100 + (level - 1) * 50;
+    if (xpUsed + nextLevelXp > totalXp) {
+      break;
+    }
+    xpUsed += nextLevelXp;
+    level++;
+  }
+  
+  const currentXp = totalXp - xpUsed;
+  const xpToNext = (level * 100 + (level - 1) * 50) - currentXp;
+  
+  return { level, currentXp, xpToNext };
+};
+
+export const getUserProgress = (): UserProgress => {
+  try {
+    const profile = getUserProfile();
+    if (!profile) {
+      return getDefaultProgress();
+    }
+    
+    const { level, currentXp } = calculateLevelFromXp(profile.totalXp || 0);
+    
+    return {
+      level,
+      currentXp,
+      totalXp: profile.totalXp || 0,
+      coins: profile.coins || 0,
+      points: profile.points || 0,
+      streak: profile.streak || 0,
+      achievements: profile.achievements || []
+    };
+  } catch (error) {
+    console.error('Error getting user progress:', error);
+    return getDefaultProgress();
+  }
+};
+
+export const getDefaultProgress = (): UserProgress => ({
+  level: 1,
+  currentXp: 0,
+  totalXp: 0,
+  coins: 0,
+  points: 0,
+  streak: 0,
+  achievements: []
+});
+
+export const addXp = (amount: number): { leveledUp: boolean; newLevel: number; rewards: any } => {
+  try {
+    const profile = getUserProfile();
+    if (!profile) {
+      throw new Error('No user profile found');
+    }
+    
+    const oldLevel = calculateLevelFromXp(profile.totalXp || 0).level;
+    const newTotalXp = (profile.totalXp || 0) + amount;
+    const { level: newLevel } = calculateLevelFromXp(newTotalXp);
+    
+    const leveledUp = newLevel > oldLevel;
+    const rewards = leveledUp ? calculateLevelData(newLevel).rewards : null;
+    
+    // Update profile
+    const updatedProfile = {
+      ...profile,
+      totalXp: newTotalXp,
+      level: newLevel,
+      coins: (profile.coins || 0) + (rewards?.coins || 0)
+    };
+    
+    saveUserProfile(updatedProfile);
+    
+    return {
+      leveledUp,
+      newLevel,
+      rewards
+    };
+  } catch (error) {
+    console.error('Error adding XP:', error);
+    return { leveledUp: false, newLevel: 1, rewards: null };
+  }
+};
+
+export const addCoins = (amount: number): boolean => {
+  try {
+    const profile = getUserProfile();
+    if (!profile) {
+      throw new Error('No user profile found');
+    }
+    
+    const updatedProfile = {
+      ...profile,
+      coins: (profile.coins || 0) + amount
+    };
+    
+    saveUserProfile(updatedProfile);
+    return true;
+  } catch (error) {
+    console.error('Error adding coins:', error);
+    return false;
+  }
+};
+
+export const addPoints = (amount: number): boolean => {
+  try {
+    const profile = getUserProfile();
+    if (!profile) {
+      throw new Error('No user profile found');
+    }
+    
+    const updatedProfile = {
+      ...profile,
+      points: (profile.points || 0) + amount
+    };
+    
+    saveUserProfile(updatedProfile);
+    return true;
+  } catch (error) {
+    console.error('Error adding points:', error);
+    return false;
+  }
+};
+
+export const addStreak = (amount: number): boolean => {
+  try {
+    const profile = getUserProfile();
+    if (!profile) {
+      throw new Error('No user profile found');
+    }
+    
+    const updatedProfile = {
+      ...profile,
+      streak: (profile.streak || 0) + amount
+    };
+    
+    saveUserProfile(updatedProfile);
+    return true;
+  } catch (error) {
+    console.error('Error adding streak:', error);
+    return false;
+  }
+};
+
+export const setLevel = (level: number): boolean => {
+  try {
+    const profile = getUserProfile();
+    if (!profile) {
+      throw new Error('No user profile found');
+    }
+    
+    // Calculate XP required for this level
+    const levelData = calculateLevelData(level);
+    const totalXpRequired = levelData.totalXpRequired;
+    
+    const updatedProfile = {
+      ...profile,
+      level,
+      totalXp: totalXpRequired
+    };
+    
+    saveUserProfile(updatedProfile);
+    return true;
+  } catch (error) {
+    console.error('Error setting level:', error);
+    return false;
+  }
+};
+
+export const getLevelProgress = (): { level: number; currentXp: number; xpToNext: number; progress: number } => {
+  const progress = getUserProgress();
+  const { level, currentXp, xpToNext } = calculateLevelFromXp(progress.totalXp);
+  const levelData = calculateLevelData(level);
+  const progressPercent = levelData.xpRequired > 0 ? (currentXp / levelData.xpRequired) * 100 : 0;
+  
+  return {
+    level,
+    currentXp,
+    xpToNext,
+    progress: Math.min(progressPercent, 100)
+  };
+};
+
+export const calculateXpReward = (baseXp: number, streak: number = 0, difficulty: 'easy' | 'medium' | 'hard' = 'medium'): number => {
+  const difficultyMultiplier = {
+    easy: 0.5,
+    medium: 1,
+    hard: 1.5
+  };
+  
+  const streakMultiplier = 1 + (streak * 0.1);
+  const difficultyBonus = difficultyMultiplier[difficulty];
+  
+  return Math.floor(baseXp * difficultyBonus * streakMultiplier);
+};
+
+export const getDailyTaskXpReward = (taskType: string, difficulty: 'easy' | 'medium' | 'hard'): number => {
+  const baseRewards = {
+    score: 25,
+    streak: 30,
+    time: 20,
+    category: 35,
+    custom: 15
+  };
+  
+  const baseXp = baseRewards[taskType as keyof typeof baseRewards] || 15;
+  return calculateXpReward(baseXp, 0, difficulty);
+};
+
+export const getLevelData = (level: number): LevelData => {
+  return calculateLevelData(level);
+};
+
+export const getUserLevelProgress = (): { level: number; currentXp: number; xpToNext: number; progress: number } => {
+  return getLevelProgress();
+};
+
+export const completeDailyTask = (taskId: string, xpReward: number): { leveledUp: boolean; newLevel: number; rewards: any } => {
+  const result = addXp(xpReward);
+  
+  // Add bonus coins for completing daily tasks
+  if (result.leveledUp) {
+    addCoins(result.rewards?.coins || 0);
+  }
+  
+  return result;
+};

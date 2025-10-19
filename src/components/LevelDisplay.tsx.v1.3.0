@@ -1,0 +1,152 @@
+import React from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { Crown, Star, Coins, Trophy, Zap } from 'lucide-react';
+import { getUserProgress, getLevelProgress } from '@/lib/xpLevelSystem';
+
+interface LevelDisplayProps {
+  variant?: 'compact' | 'detailed' | 'card';
+  showProgress?: boolean;
+  showRewards?: boolean;
+  className?: string;
+}
+
+export const LevelDisplay: React.FC<LevelDisplayProps> = ({
+  variant = 'detailed',
+  showProgress = true,
+  showRewards = false,
+  className = ''
+}) => {
+  const progress = getUserProgress();
+  const levelProgress = getLevelProgress();
+
+  if (variant === 'compact') {
+    return (
+      <div className={`flex items-center gap-2 ${className}`}>
+        <div className="flex items-center gap-1">
+          <Crown className="h-4 w-4 text-yellow-500" />
+          <span className="font-semibold text-sm">Level {progress.level}</span>
+        </div>
+        {showProgress && (
+          <div className="flex items-center gap-1">
+            <Progress 
+              value={levelProgress.progress} 
+              className="w-16 h-2" 
+            />
+            <span className="text-xs text-gray-500">
+              {levelProgress.currentXp}/{levelProgress.xpToNext + levelProgress.currentXp}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (variant === 'card') {
+    return (
+      <Card className={`border-yellow-200 bg-gradient-to-br from-yellow-50 to-orange-50 ${className}`}>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Crown className="h-6 w-6 text-yellow-600" />
+              <div>
+                <h3 className="font-bold text-lg">Level {progress.level}</h3>
+                <p className="text-sm text-gray-600">
+                  {levelProgress.currentXp} / {levelProgress.xpToNext + levelProgress.currentXp} XP
+                </p>
+              </div>
+            </div>
+            <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+              {Math.floor(levelProgress.progress)}% to next
+            </Badge>
+          </div>
+          
+          {showProgress && (
+            <Progress 
+              value={levelProgress.progress} 
+              className="h-3 mb-3"
+            />
+          )}
+
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="flex items-center gap-2">
+              <Coins className="h-4 w-4 text-yellow-600" />
+              <span>{progress.coins} coins</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Trophy className="h-4 w-4 text-blue-600" />
+              <span>{progress.points} points</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-orange-600" />
+              <span>{progress.streak} streak</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Star className="h-4 w-4 text-purple-600" />
+              <span>{progress.totalXp} total XP</span>
+            </div>
+          </div>
+
+          {showRewards && (
+            <div className="mt-3 p-2 bg-green-50 rounded-lg">
+              <p className="text-xs text-green-700 font-medium">
+                Next Level Reward: {progress.level * 50} coins
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Detailed variant (default)
+  return (
+    <div className={`space-y-3 ${className}`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Crown className="h-5 w-5 text-yellow-500" />
+          <h3 className="font-semibold text-lg">Level {progress.level}</h3>
+        </div>
+        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+          {Math.floor(levelProgress.progress)}% complete
+        </Badge>
+      </div>
+
+      {showProgress && (
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm text-gray-600">
+            <span>{levelProgress.currentXp} XP</span>
+            <span>{levelProgress.xpToNext} to next level</span>
+          </div>
+          <Progress value={levelProgress.progress} className="h-2" />
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="flex items-center gap-2">
+          <Coins className="h-4 w-4 text-yellow-600" />
+          <span className="font-medium">{progress.coins}</span>
+          <span className="text-gray-500">coins</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Trophy className="h-4 w-4 text-blue-600" />
+          <span className="font-medium">{progress.points}</span>
+          <span className="text-gray-500">points</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Zap className="h-4 w-4 text-orange-600" />
+          <span className="font-medium">{progress.streak}</span>
+          <span className="text-gray-500">streak</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Star className="h-4 w-4 text-purple-600" />
+          <span className="font-medium">{progress.totalXp}</span>
+          <span className="text-gray-500">total XP</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default LevelDisplay;

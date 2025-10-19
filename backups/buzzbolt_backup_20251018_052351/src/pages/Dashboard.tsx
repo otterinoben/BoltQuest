@@ -1,0 +1,232 @@
+import { Link } from "react-router-dom";
+import { Zap, Target, Trophy, TrendingUp, BookOpen, Calendar, Flame } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { getUserProfile } from "@/lib/userStorage";
+import { getGameHistoryByUserId } from "@/lib/gameHistoryStorage";
+import { getCurrentDailyTasks, getDailyTaskStats, getTaskCompletionPercentage } from "@/lib/dailyTaskManager";
+import TutorialManager from "@/components/tutorial/TutorialManager";
+
+const Dashboard = () => {
+  // Get real user data instead of mock data
+  const userProfile = getUserProfile();
+  
+  // Get daily task data
+  const dailyTasks = getCurrentDailyTasks();
+  const dailyStats = getDailyTaskStats();
+  const dailyProgress = dailyTasks ? getTaskCompletionPercentage(dailyTasks) : 0;
+  
+  // Calculate real stats
+  const totalGames = userProfile.statistics.totalGamesPlayed;
+  const totalScore = userProfile.statistics.totalScore;
+  const avgScore = totalGames > 0 ? Math.round(totalScore / totalGames) : 0;
+  const bestScore = userProfile.statistics.bestScore;
+  
+  // Get recent games from game history
+  const recentGames = getGameHistoryByUserId(userProfile.id).slice(0, 5);
+
+  return (
+    <div className="min-h-screen p-6 md:p-8 space-y-8 animate-fade-in">
+      {/* Tutorial Manager */}
+      <TutorialManager pageId="dashboard" />
+      
+      {/* Hero Section */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-hero p-8 md:p-12 shadow-elegant">
+        <div className="relative z-10">
+          <h1 className="text-4xl md:text-5xl font-bold text-primary-foreground mb-4">
+            Welcome to BoltQuest
+          </h1>
+          <p className="text-lg text-primary-foreground/90 mb-8 max-w-2xl">
+            Test your knowledge of buzzwords and industry jargon. Challenge yourself with time trials
+            or practice in training mode.
+          </p>
+          <div className="flex flex-wrap gap-4" data-tutorial="start-tutorial">
+            <Link to="/play">
+              <Button size="lg" variant="hero" className="group">
+                <Zap className="mr-2 h-5 w-5 group-hover:animate-pulse-glow" />
+                Quick Play
+              </Button>
+            </Link>
+            <Link to="/play/training">
+              <Button size="lg" variant="outline" className="bg-card/50 backdrop-blur-sm border-primary-foreground/30 text-primary-foreground hover:bg-card/70">
+                <BookOpen className="mr-2 h-5 w-5" />
+                Training Mode
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="border-border shadow-elegant hover:shadow-glow transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Games</CardTitle>
+            <Target className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-primary">{totalGames}</div>
+            <p className="text-xs text-muted-foreground mt-1">Games completed</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border shadow-elegant hover:shadow-glow transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Average Score</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-accent">{avgScore}</div>
+            <p className="text-xs text-muted-foreground mt-1">Keep improving!</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border shadow-elegant hover:shadow-glow transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Best Score</CardTitle>
+            <Trophy className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-success">{bestScore}</div>
+            <p className="text-xs text-muted-foreground mt-1">Personal record</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Scores */}
+      <Card className="border-border shadow-elegant">
+        <CardHeader>
+          <CardTitle className="text-2xl">Recent Games</CardTitle>
+          <CardDescription>Your last 5 game results</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {recentGames.length > 0 ? (
+              recentGames.slice(0, 5).map((game) => (
+                <div
+                  key={game.id}
+                  className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="text-2xl font-bold text-primary">{game.score}</div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="capitalize">
+                          {game.category}
+                        </Badge>
+                        <Badge
+                          variant={
+                            game.difficulty === "hard"
+                              ? "destructive"
+                              : game.difficulty === "medium"
+                              ? "default"
+                              : "secondary"
+                          }
+                          className="capitalize"
+                        >
+                          {game.difficulty}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {game.correctAnswers}/{game.questionsAnswered} correct
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(game.date).toLocaleDateString()}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {Math.floor(game.timeSpent / 60)}m {game.timeSpent % 60}s
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center text-muted-foreground py-8">
+                <p>No games played yet. Start your first game!</p>
+                <Link to="/play">
+                  <Button className="mt-4">
+                    <Zap className="mr-2 h-4 w-4" />
+                    Play Now
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Daily Tasks Widget */}
+      {dailyTasks && (
+        <Card className="border-primary/50 bg-gradient-primary shadow-elegant">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-primary-foreground">
+              <Calendar className="h-6 w-6" />
+              Daily Tasks
+              {dailyStats.currentStreak > 0 && (
+                <Badge variant="secondary" className="bg-primary-foreground/20 text-primary-foreground">
+                  <Flame className="h-3 w-3 mr-1" />
+                  {dailyStats.currentStreak} day streak
+                </Badge>
+              )}
+            </CardTitle>
+            <CardDescription className="text-primary-foreground/80">
+              Complete daily challenges to earn XP and maintain your streak
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-primary-foreground/80">Today's Progress</span>
+                <span className="text-sm font-semibold text-primary-foreground">{dailyProgress}%</span>
+              </div>
+              <Progress value={dailyProgress} className="h-2" />
+              
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-primary-foreground/80">
+                  {dailyTasks.tasks.filter(t => t.completed).length} of {dailyTasks.tasks.length} tasks completed
+                </span>
+                <Link to="/daily-tasks">
+                  <Button variant="outline" size="sm" className="bg-primary-foreground/10 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/20">
+                    View All Tasks
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Quick Actions */}
+      <Card className="border-accent/50 bg-gradient-accent shadow-glow">
+        <CardHeader>
+          <CardTitle className="text-2xl text-accent-foreground">Ready for More?</CardTitle>
+          <CardDescription className="text-accent-foreground/80">
+            Jump into a new challenge or review your progress
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-4">
+            <Link to="/leaderboards">
+              <Button variant="outline" className="bg-card/80 backdrop-blur-sm border-accent-foreground/30">
+                <Trophy className="mr-2 h-4 w-4" />
+                View Leaderboards
+              </Button>
+            </Link>
+            <Link to="/analytics">
+              <Button variant="outline" className="bg-card/80 backdrop-blur-sm border-accent-foreground/30">
+                <TrendingUp className="mr-2 h-4 w-4" />
+                View Analytics
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default Dashboard;
