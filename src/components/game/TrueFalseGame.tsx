@@ -28,121 +28,121 @@ interface TrueFalseGameProps {
   selectedCategories?: string[];
 }
 
-// Personalized questions by category
+// Personalized questions by category - BASED ON ACTUAL BOLTQUEST TOPICS
 const QUESTIONS_BY_CATEGORY = {
   tech: [
     {
       id: 'tech-001',
-      statement: 'JavaScript is a statically typed programming language.',
-      answer: false,
-      explanation: 'JavaScript is dynamically typed, not statically typed. TypeScript is statically typed.',
+      statement: 'An API is a set of protocols for building software applications.',
+      answer: true,
+      explanation: 'API stands for Application Programming Interface - it defines how software components should interact.',
       category: 'Technology'
     },
     {
       id: 'tech-002',
-      statement: 'React uses a virtual DOM to improve performance.',
-      answer: true,
-      explanation: 'React creates a virtual representation of the DOM in memory and uses it to efficiently update the real DOM.',
+      statement: 'Machine Learning requires human intervention for every decision.',
+      answer: false,
+      explanation: 'Machine Learning algorithms learn patterns from data and make decisions autonomously without constant human input.',
       category: 'Technology'
     },
     {
       id: 'tech-003',
-      statement: 'Python was created by Guido van Rossum.',
-      answer: true,
-      explanation: 'Guido van Rossum created Python and is known as Python\'s "Benevolent Dictator For Life".',
+      statement: 'Cloud computing means storing data on physical servers in your office.',
+      answer: false,
+      explanation: 'Cloud computing uses remote servers accessed over the internet, not local physical servers.',
       category: 'Technology'
     },
     {
       id: 'tech-004',
-      statement: 'CSS stands for Cascading Style Sheets.',
+      statement: 'DevOps combines development and operations practices.',
       answer: true,
-      explanation: 'CSS is indeed Cascading Style Sheets, used for styling web pages.',
+      explanation: 'DevOps is a methodology that combines software development (Dev) and IT operations (Ops) to shorten the development lifecycle.',
       category: 'Technology'
     },
     {
       id: 'tech-005',
-      statement: 'GitHub is owned by Microsoft.',
-      answer: true,
-      explanation: 'Microsoft acquired GitHub in 2018 for $7.5 billion.',
+      statement: 'Microservices architecture uses a single large application.',
+      answer: false,
+      explanation: 'Microservices architecture breaks applications into small, independent services that communicate over well-defined APIs.',
       category: 'Technology'
     },
     {
       id: 'tech-006',
-      statement: 'Machine Learning and Artificial Intelligence are the same thing.',
-      answer: false,
-      explanation: 'Machine Learning is a subset of AI. AI is broader and includes ML, deep learning, and other techniques.',
+      statement: 'Agile methodology emphasizes iterative development.',
+      answer: true,
+      explanation: 'Agile methodology focuses on iterative development, collaboration, and responding to change over following a plan.',
       category: 'Technology'
     },
     {
       id: 'tech-007',
-      statement: 'HTTP stands for HyperText Transfer Protocol.',
+      statement: 'Kubernetes is a container orchestration platform.',
       answer: true,
-      explanation: 'HTTP is the protocol used for transferring web pages and data on the internet.',
+      explanation: 'Kubernetes is an open-source container orchestration system for automating software deployment, scaling, and management.',
       category: 'Technology'
     },
     {
       id: 'tech-008',
-      statement: 'Blockchain technology requires a central authority to function.',
+      statement: 'Blockchain technology requires a central authority to validate transactions.',
       answer: false,
-      explanation: 'Blockchain is decentralized by design and doesn\'t require a central authority.',
+      explanation: 'Blockchain is decentralized - transactions are validated by a network of nodes without requiring a central authority.',
       category: 'Technology'
     }
   ],
   business: [
     {
       id: 'biz-001',
-      statement: 'A startup is typically defined as a company in its first year of operation.',
+      statement: 'A Minimum Viable Product (MVP) should include all planned features.',
       answer: false,
-      explanation: 'A startup is defined by its growth potential and scalability, not just age. Many startups operate for years.',
+      explanation: 'An MVP includes only the core features necessary to validate the product concept with early customers.',
       category: 'Business'
     },
     {
       id: 'biz-002',
-      statement: 'SWOT analysis stands for Strengths, Weaknesses, Opportunities, and Threats.',
+      statement: 'Customer Acquisition Cost (CAC) should be lower than Customer Lifetime Value (CLV).',
       answer: true,
-      explanation: 'SWOT is a strategic planning tool used to evaluate these four key factors.',
+      explanation: 'For sustainable business growth, the cost to acquire a customer should be significantly less than their lifetime value.',
       category: 'Business'
     },
     {
       id: 'biz-003',
-      statement: 'The lean startup methodology was created by Eric Ries.',
-      answer: true,
-      explanation: 'Eric Ries popularized the lean startup methodology in his book "The Lean Startup".',
+      statement: 'A pivot means completely abandoning your original business idea.',
+      answer: false,
+      explanation: 'A pivot is a strategic change in direction while keeping core elements of the business model or product.',
       category: 'Business'
     },
     {
       id: 'biz-004',
-      statement: 'Customer acquisition cost (CAC) should always be lower than customer lifetime value (CLV).',
+      statement: 'Product-market fit means your product perfectly matches market demand.',
       answer: true,
-      explanation: 'For a sustainable business, CAC should be significantly lower than CLV to ensure profitability.',
+      explanation: 'Product-market fit occurs when a product satisfies a strong market demand and customers are actively seeking it.',
       category: 'Business'
     },
     {
       id: 'biz-005',
       statement: 'A unicorn startup is valued at over $1 billion.',
       answer: true,
-      explanation: 'Unicorn startups are privately held companies valued at over $1 billion.',
+      explanation: 'A unicorn startup is a privately held company valued at over $1 billion.',
       category: 'Business'
     },
     {
       id: 'biz-006',
-      statement: 'The 80/20 rule (Pareto Principle) states that 80% of results come from 20% of efforts.',
+      statement: 'The lean startup methodology was created by Eric Ries.',
       answer: true,
-      explanation: 'The Pareto Principle suggests that roughly 80% of effects come from 20% of causes.',
+      explanation: 'Eric Ries popularized the lean startup methodology in his book "The Lean Startup".',
       category: 'Business'
     },
     {
       id: 'biz-007',
-      statement: 'A pivot means completely changing your business model.',
-      answer: false,
-      explanation: 'A pivot is a strategic change in direction, not necessarily a complete business model change.',
+      statement: 'SWOT analysis stands for Strengths, Weaknesses, Opportunities, and Threats.',
+      answer: true,
+      explanation: 'SWOT analysis is a strategic planning tool used to evaluate these four key factors.',
       category: 'Business'
     },
     {
       id: 'biz-008',
-      statement: 'Product-market fit means your product perfectly matches market demand.',
+      statement: 'The 80/20 rule states that 80% of results come from 20% of efforts.',
       answer: true,
-      explanation: 'Product-market fit occurs when a product satisfies a strong market demand.',
+      explanation: 'The Pareto Principle (80/20 rule) suggests that roughly 80% of effects come from 20% of causes.',
       category: 'Business'
     }
   ],
@@ -151,7 +151,7 @@ const QUESTIONS_BY_CATEGORY = {
       id: 'mkt-001',
       statement: 'SEO stands for Search Engine Optimization.',
       answer: true,
-      explanation: 'SEO is the practice of optimizing websites to rank higher in search engine results.',
+      explanation: 'SEO is the practice of optimizing websites to rank higher in search engine results pages.',
       category: 'Marketing'
     },
     {
