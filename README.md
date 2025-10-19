@@ -1,73 +1,106 @@
-# Welcome to your Lovable project
+# 🚀 BuzzBolt Playbook Guide
 
-## Project info
+A comprehensive React-based quiz game application with ELO ranking system, daily tasks, and advanced testing capabilities.
 
-**URL**: https://lovable.dev/projects/b21b6f51-ce32-4a10-abc7-a51b69e49e6c
+## 🎯 Features
 
-## How can I edit this code?
+- **ELO Ranking System** - Competitive ranking with tiers from Iron to Challenger
+- **Daily Tasks** - Personalized daily challenges with smart recommendations
+- **Comprehensive Testing Panel** - Built-in admin tools for testing all features
+- **Apple-Inspired UI** - Modern glass morphism design with smooth animations
+- **Real-time Data Updates** - Live ELO updates and progress tracking
+- **Mobile Responsive** - Optimized for all device sizes
 
-There are several ways of editing your application.
+## 🏗️ Project Structure
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/b21b6f51-ce32-4a10-abc7-a51b69e49e6c) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```
+├── src/                    # Source code
+│   ├── components/        # React components
+│   ├── contexts/          # React contexts for state management
+│   ├── hooks/             # Custom React hooks
+│   ├── lib/               # Core business logic
+│   ├── pages/             # Application pages
+│   └── types/             # TypeScript type definitions
+├── docs/                  # Documentation files
+├── plans/                 # Development plans and analysis
+├── reports/               # Sprint reports and assessments
+└── backups/              # Project backups
 ```
 
-**Edit a file directly in GitHub**
+## 🚀 Quick Start
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-**Use GitHub Codespaces**
+2. **Start development server:**
+   ```bash
+   npm run dev
+   ```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+3. **Open in browser:**
+   Navigate to `http://localhost:8081`
 
-## What technologies are used for this project?
+## 🧪 Testing Features
 
-This project is built with:
+The application includes a comprehensive testing panel accessible via the admin interface:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- **ELO Testing** - Test all ranking tiers and divisions
+- **User Data Management** - Reset and manipulate user data
+- **Match History** - Add test games and view statistics
+- **Smart Notifications** - Test notification system
+- **Comprehensive Scenarios** - Pre-built test scenarios
 
-## How can I deploy this project?
+## 📊 ELO Ranking System
 
-Simply open [Lovable](https://lovable.dev/projects/b21b6f51-ce32-4a10-abc7-a51b69e49e6c) and click on Share -> Publish.
+- **Iron** (0-1000) - Starting tier
+- **Bronze** (1000-1800) - Beginner level
+- **Silver** (1800-2600) - Intermediate level
+- **Gold** (2600-3400) - Advanced level
+- **Platinum** (3400-4200) - Expert level
+- **Diamond** (4200-5000) - Master level
+- **Master** (5000-6000) - Elite level
+- **Grandmaster** (6000-7000) - Top tier
+- **Challenger** (7000+) - Highest tier
 
-## Can I connect a custom domain to my Lovable project?
+## 🛠️ Tech Stack
 
-Yes, you can!
+- **React 18** with TypeScript
+- **Vite** for build tooling
+- **Tailwind CSS** for styling
+- **Framer Motion** for animations
+- **React Router** for navigation
+- **TanStack Query** for data fetching
+- **Sonner** for notifications
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## 📁 Documentation
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- **[Development Plans](plans/)** - Detailed implementation plans
+- **[Sprint Reports](reports/)** - Project progress and assessments
+- **[Documentation](docs/)** - Technical documentation and guides
+
+## 🔧 Development
+
+This project uses modern React patterns with:
+- Context API for state management
+- Custom hooks for reusable logic
+- TypeScript for type safety
+- Component composition for maintainability
+
+## 📈 Recent Updates
+
+- ✅ ELO ranking system with 25 divisions
+- ✅ Comprehensive testing panel
+- ✅ Apple-inspired UI design
+- ✅ Real-time data updates
+- ✅ Mobile responsiveness
+- ✅ Daily task system
+
+## 🤝 Contributing
+
+This is a personal project showcasing modern React development practices and game design principles.
+
+---
+
+**Built with ❤️ using React, TypeScript, and modern web technologies**
