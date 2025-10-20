@@ -94,7 +94,7 @@ export function AppSidebar() {
       case '#B9F2FF': return 'text-blue-600'; // Diamond
       case '#8A2BE2': return 'text-purple-700'; // Master
       case '#FF4500': return 'text-red-700'; // Grandmaster
-      case '#FFD700': return 'text-yellow-600'; // Challenger (same as Gold but different context)
+      case '#FF8C00': return 'text-orange-600'; // Challenger (different from Gold)
       default: return 'text-blue-700';
     }
   };
@@ -113,7 +113,7 @@ export function AppSidebar() {
       case '#B9F2FF': return 'border-blue-400'; // Diamond
       case '#8A2BE2': return 'border-purple-500'; // Master
       case '#FF4500': return 'border-red-500'; // Grandmaster
-      case '#FFD700': return 'border-yellow-400'; // Challenger
+      case '#FF8C00': return 'border-orange-400'; // Challenger
       default: return 'border-blue-500';
     }
   };
@@ -132,7 +132,7 @@ export function AppSidebar() {
       case '#B9F2FF': return 'bg-blue-50'; // Diamond
       case '#8A2BE2': return 'bg-purple-50'; // Master
       case '#FF4500': return 'bg-red-50'; // Grandmaster
-      case '#FFD700': return 'bg-yellow-50'; // Challenger
+      case '#FF8C00': return 'bg-orange-50'; // Challenger
       default: return 'bg-blue-50';
     }
   };

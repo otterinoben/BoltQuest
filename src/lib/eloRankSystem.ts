@@ -328,8 +328,8 @@ export class EloRankSystem {
       division: "",
       minElo: 7000,
       maxElo: 10000,
-      color: "#FFD700",
-      bgColor: "linear-gradient(135deg, #FFD700, #FFA500, #FF6347)",
+      color: "#FF8C00",
+      bgColor: "linear-gradient(135deg, #FF8C00, #FFA500, #FF6347)",
       borderColor: "#DAA520",
       icon: "🌟",
       description: "Challenger legend"

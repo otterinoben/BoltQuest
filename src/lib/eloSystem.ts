@@ -299,6 +299,15 @@ export class EloSystem {
     );
   }
 
+  // Get ELO rating for a specific category
+  getCategoryRating(category: string): number {
+    if (!this.userProfile.categoryRatings || !this.userProfile.categoryRatings[category]) {
+      return STARTING_RATING; // Default rating for new categories
+    }
+    
+    return this.userProfile.categoryRatings[category];
+  }
+
   // Get ELO statistics
   getEloStats(): EloRating {
     return { ...this.userProfile };

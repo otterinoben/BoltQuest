@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Category, Difficulty, GameState } from "@/types/game";
 import { getUserProfile } from "@/lib/userStorage";
 import { mockQuestions } from "@/data/mockData";
-import { Clock, Flame, Trophy, CheckCircle2, XCircle, SkipForward, Pause, Play, X, Target, RotateCcw, Zap } from "lucide-react";
+import { Clock, Flame, Trophy, CheckCircle2, XCircle, SkipForward, Pause, Play, X, Target, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { checkAchievements, getUnlockedAchievements, getConsecutiveGameStats } from "@/lib/simpleAchievements";
 import { updateGameStatistics } from "@/lib/userStorage";
@@ -15,18 +15,9 @@ import { addGameToHistory } from "@/lib/gameHistoryStorage";
 import { addHighScore } from "@/lib/highScoreStorage";
 import { updateTaskProgress, getCurrentDailyTasks } from "@/lib/dailyTaskManager";
 import { LevelUpPopup } from '@/components/LevelUpPopup';
-import FlowFeedback from '@/components/FlowFeedback';
-import { addXp, getUserLevelProgress, getLevelData, calculateXpReward } from '@/lib/xpLevelSystem';
-import { 
-  awardCoinsForGamePlayed, 
-  awardCoinsForCorrectAnswer, 
-  awardCoinsForStreakMilestone, 
-  awardCoinsForPersonalBest 
-} from '@/lib/coinSystem';
-import { quickShare } from '@/lib/socialSharing';
+import { addXp, getUserLevelProgress, getLevelData, calculateXpReward } from '@/lib/dailyTaskLeveling';
 import { useAudio } from '@/contexts/AudioContext';
-import { useAutoSave } from '@/lib/autoSave';
-import { useTesting } from '@/contexts/TestingContext';
+import { GameOverScreen } from '@/components/game/GameOverScreen';
 import {
   createQuestionPool,
   RandomizedQuestion,
@@ -34,30 +25,17 @@ import {
   getRandomizationAnalytics,
   validateRandomization
 } from '@/lib/questionRandomizer';
-import { AdaptiveDifficultyManager, DifficultyUtils } from '@/lib/adaptiveDifficulty';
-import { MicroSessionManager, SessionType, SessionUtils } from '@/lib/microSessions';
-import { EloSystem } from '@/lib/eloSystem';
-import { EnhancedProgressIndicators } from '@/components/game/EnhancedProgressIndicators';
-import { SmartPauseManager } from '@/components/game/SmartPauseManager';
-import { smartPauseSystem } from '@/lib/smartPauseSystem';
-import { HelpTrigger } from '@/components/help/HelpTrigger';
 
 const Game = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { playSound } = useAudio();
-  const { performAutoSave } = useAutoSave();
-  const testing = useTesting();
   const category = (searchParams.get("category") as Category) || "tech";
   const difficulty = (searchParams.get("difficulty") as Difficulty) || "medium";
   const mode = searchParams.get("mode") || "classic";
   const timerPreset = parseInt(searchParams.get("timer") || "45");
   const taskId = searchParams.get("taskId");
   const taskTitle = searchParams.get("taskTitle");
-
-  // Validate parameters and provide fallbacks
-  const validCategory = mockQuestions[category] ? category : "tech";
-  const validDifficulty = mockQuestions[validCategory]?.[difficulty] ? difficulty : "medium";
 
   // Load user preferences for hints and auto-pause
   const [userPreferences, setUserPreferences] = useState({
@@ -71,28 +49,7 @@ const Game = () => {
   const [hintUsed, setHintUsed] = useState(false);
 
   // Penalty animation state
-  const [penaltyAnimations, setPenaltyAnimations] = useState<Array<{
-    id: string, 
-    type: 'time' | 'score', 
-    value: number, 
-    timestamp: number,
-    position: { x: number, y: number },
-    index: number,
-    delay: number
-  }>>([]);
-
-  // Streak popup state
-  const [streakPopups, setStreakPopups] = useState<Array<{
-    id: string,
-    type: 'milestone' | 'pb',
-    message: string,
-    timestamp: number,
-    position: { x: number, y: number },
-    index: number,
-    delay: number
-  }>>([]);
-  
-  const [unpauseCountdown, setUnpauseCountdown] = useState<number | null>(null);
+  const [penaltyAnimations, setPenaltyAnimations] = useState<Array<{id: string, type: 'time' | 'score', value: number, timestamp: number}>>([]);
 
   useEffect(() => {
     try {
@@ -128,14 +85,6 @@ const Game = () => {
     questionsSkipped: 0,
     skipPenalty: 0,
   });
-
-  // Adaptive Difficulty System
-  const [adaptiveManager] = useState(() => new AdaptiveDifficultyManager());
-  const [microSessionManager] = useState(() => new MicroSessionManager());
-  const [eloSystem] = useState(() => new EloSystem());
-  const [currentSession, setCurrentSession] = useState<any>(null);
-  const [flowState, setFlowState] = useState<any>(null);
-  const [showFlowFeedback, setShowFlowFeedback] = useState(false);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -181,7 +130,7 @@ const Game = () => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [userPreferences.autoPause, gameState.isPaused, showGameOver]);
 
-  const questions = mockQuestions[validCategory][validDifficulty];
+  const questions = mockQuestions[category][difficulty];
   const totalQuestions = questions.length;
 
   // Handle hint usage
@@ -206,99 +155,15 @@ const Game = () => {
     return hints[Math.floor(Math.random() * hints.length)];
   };
 
-  // Show penalty animation - 5 different rain patterns that alternate
+  // Show penalty animation - single number
   const showPenaltyAnimation = (type: 'time' | 'score', value: number) => {
-    // 5 different rain patterns for variety
-    const rainPatterns = [
-      // Pattern 1: Wide spread, high-low-high
-      [
-        { x: -80, y: -15 },   // Left side, slightly up
-        { x: 0, y: 5 },       // Center, slightly down
-        { x: 70, y: -10 }     // Right side, slightly up
-      ],
-      // Pattern 2: Tight cluster, all slightly different heights
-      [
-        { x: -40, y: -5 },    // Left, slightly up
-        { x: 0, y: 0 },       // Center, neutral
-        { x: 40, y: 5 }       // Right, slightly down
-      ],
-      // Pattern 3: Scattered wide, varied heights
-      [
-        { x: -90, y: 10 },    // Far left, down
-        { x: 20, y: -20 },    // Right-center, up
-        { x: 80, y: 5 }       // Far right, slightly down
-      ],
-      // Pattern 4: Arc pattern, curved spread
-      [
-        { x: -60, y: -25 },   // Left, high
-        { x: 0, y: 0 },       // Center, neutral
-        { x: 60, y: -25 }     // Right, high (arc shape)
-      ],
-      // Pattern 5: Diagonal line, sloping down
-      [
-        { x: -70, y: -20 },   // Left, high
-        { x: -20, y: -5 },    // Left-center, medium
-        { x: 50, y: 15 }      // Right, low (diagonal)
-      ]
-    ];
-
-    // Randomly select one of the 5 patterns
-    const selectedPattern = rainPatterns[Math.floor(Math.random() * rainPatterns.length)];
-
-    // Create all 3 instances with the selected pattern
-    const animations = selectedPattern.map((position, index) => ({
-      id: Math.random().toString(36).substr(2, 9) + `_${index}`,
-      type,
-      value,
-      timestamp: Date.now(),
-      position,
-      index,
-      delay: index * 120 // Slightly longer delay for rain effect
-    }));
-
-    // Add all animations at once
-    setPenaltyAnimations(prev => [...prev, ...animations]);
+    const id = Math.random().toString(36).substr(2, 9);
+    setPenaltyAnimations(prev => [...prev, { id, type, value, timestamp: Date.now() }]);
     
-    // Remove all animations after 3 seconds
+    // Remove animation after 2.5 seconds
     setTimeout(() => {
-      setPenaltyAnimations(prev => prev.filter(anim => 
-        !animations.some(a => a.id === anim.id)
-      ));
-    }, 3000);
-  };
-
-  // Show streak popup - subtle like penalty animations
-  const showStreakPopup = (type: 'milestone' | 'pb', message: string) => {
-    // Different popup counts based on type
-    const popupCount = type === 'pb' ? 2 : 1;
-    
-    // Different positions for streak popups to avoid overlap with penalties
-    const positions = [
-      { x: -60, y: 0 },
-      { x: 0, y: 0 },
-      { x: 60, y: 0 }
-    ].slice(0, popupCount); // Only use the number of positions we need
-
-    // Create popups based on type
-    const popups = positions.map((position, index) => ({
-      id: Math.random().toString(36).substr(2, 9) + `_${index}`,
-      type,
-      message,
-      timestamp: Date.now(),
-      position,
-      index,
-      delay: index * 100
-    }));
-
-    // Add all popups at once
-    setStreakPopups(prev => [...prev, ...popups]);
-    
-    // Remove all popups after 3 seconds
-    setTimeout(() => {
-      setStreakPopups(prev => prev.filter(popup => 
-        !popups.some(p => p.id === popup.id)
-      ));
-    }, 3000);
+      setPenaltyAnimations(prev => prev.filter(anim => anim.id !== id));
+    }, 2500);
   };
 
   // Reset hint state for new question
@@ -368,13 +233,6 @@ const Game = () => {
     }
   }, []);
 
-  // Auto-save on game state changes
-  useEffect(() => {
-    if (!showGameOver && !gameState.isPaused) {
-      performAutoSave();
-    }
-  }, [gameState.score, gameState.combo, gameState.questionsAnswered, showGameOver, gameState.isPaused, performAutoSave]);
-
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
@@ -392,11 +250,7 @@ const Game = () => {
       // Pause/Resume with Space key
       if (event.key === ' ' && !showFeedback) {
         event.preventDefault();
-    if (gameState.isPaused) {
-          handleUnpause();
-    } else {
-          handlePause();
-        }
+        handlePause();
       }
 
       // Quit game with Escape key
@@ -441,95 +295,32 @@ const Game = () => {
 
     const newCombo = correct ? gameState.combo + 1 : 0;
     
-    // Calculate time adjustment
-    const timeAdjustment = (mode === "quick" || mode === "classic") ? (correct ? 3 : -5) : 0;
-    
-    // Adaptive Difficulty: Track performance metrics
-    const responseTime = Date.now() - (gameState.startTime.getTime() + (totalTime - gameState.timeRemaining) * 1000);
-    const performanceMetrics = {
-      accuracy: correct ? 1 : 0,
-      responseTime: responseTime,
-      streak: newCombo,
-      questionsAnswered: gameState.questionsAnswered + 1,
-      timestamp: new Date()
-    };
-
-    // Update adaptive difficulty system
-    const difficultyAdjustment = adaptiveManager.updatePerformance(performanceMetrics);
-    const newFlowState = adaptiveManager.getFlowState();
-    setFlowState(newFlowState);
-
-    // Show flow feedback if user is not in optimal zone
-    if (!newFlowState.isInFlow && gameState.questionsAnswered > 3) {
-      setShowFlowFeedback(true);
-      setTimeout(() => setShowFlowFeedback(false), 3000);
-    }
-    
-    // Show penalty animations with sounds
-    if (timeAdjustment > 0) {
-      showPenaltyAnimation('time', timeAdjustment);
-      playSound('correct'); // Satisfying sound for time bonus
-    } else if (timeAdjustment < 0) {
-      showPenaltyAnimation('time', timeAdjustment);
-      playSound('incorrect'); // Penalty sound for time loss
-    }
-    
     setGameState((prev) => {
+      const timeAdjustment = (mode === "quick" || mode === "classic") ? (correct ? 3 : -5) : 0;
         const newTime = Math.max(0, prev.timeRemaining + timeAdjustment);
-      
-      return {
-        ...prev,
+        
+        // Show penalty animations
+        if (timeAdjustment > 0) {
+          showPenaltyAnimation('time', timeAdjustment);
+        } else if (timeAdjustment < 0) {
+          showPenaltyAnimation('time', timeAdjustment);
+        }
+        
+        return {
+          ...prev,
           score: prev.score + scoreGain,
           combo: newCombo,
         timeRemaining: newTime,
         answers: [...prev.answers, answerIndex],
           questionsAnswered: prev.questionsAnswered + 1,
-      };
-    });
-    
+        };
+      });
+      
     if (newCombo > longestCombo) {
       setLongestCombo(newCombo);
-      
-      // Check for PB streak milestone with unique sound
-      if (newCombo >= 5) {
-        showStreakPopup('pb', 'NEW PB!');
-        awardCoinsForPersonalBest();
-        playSound('notification'); // Unique notification sound for PB achievement
-      }
-    }
-
-    // Check for streak milestones with unique sounds (only 1 at a time)
-    if (correct && newCombo > 0) {
-      // Clear any existing streak popups first
-      setStreakPopups([]);
-      
-      if (newCombo === 5) {
-        showStreakPopup('milestone', 'HOT!');
-        awardCoinsForStreakMilestone(newCombo);
-        playSound('achievement'); // Unique achievement sound for HOT!
-      } else if (newCombo === 10) {
-        showStreakPopup('milestone', 'ON FIRE!');
-        awardCoinsForStreakMilestone(newCombo);
-        playSound('achievement'); // Unique achievement sound for ON FIRE!
-      } else if (newCombo === 15) {
-        showStreakPopup('milestone', 'UNSTOPPABLE!');
-        awardCoinsForStreakMilestone(newCombo);
-        playSound('achievement'); // Unique achievement sound for UNSTOPPABLE!
-      } else if (newCombo === 20) {
-        showStreakPopup('milestone', 'LEGENDARY!');
-        awardCoinsForStreakMilestone(newCombo);
-        playSound('achievement'); // Unique achievement sound for LEGENDARY!
-      } else if (newCombo === 25) {
-        showStreakPopup('milestone', 'GODLIKE!');
-        awardCoinsForStreakMilestone(newCombo);
-        playSound('achievement'); // Unique achievement sound for GODLIKE!
-      }
     }
 
     if (correct) {
-      // Award coins for correct answer
-      awardCoinsForCorrectAnswer(difficulty);
-      
       playSound('correct');
       toast.success(`Correct! +${scoreGain} point`, {
         description: newCombo > 0 ? `${newCombo}x Combo! ${(mode === "quick" || mode === "classic") ? "+3s" : ""}` : (mode === "quick" || mode === "classic") ? "+3 seconds" : undefined,
@@ -574,10 +365,11 @@ const Game = () => {
     setSkipCount(prev => prev + 1);
     playSound('skip');
     
-    // Show single penalty animation (prioritize time penalty if both exist)
+    // Show penalty animations
     if (timePenalty > 0) {
       showPenaltyAnimation('time', -timePenalty);
-    } else if (skipPenalty > 0) {
+    }
+    if (skipPenalty > 0) {
       showPenaltyAnimation('score', -skipPenalty);
     }
     
@@ -628,118 +420,6 @@ const Game = () => {
       }
     });
   };
-
-  const handleUnpause = () => {
-    if (!gameState.isPaused) return;
-    
-    // Start countdown
-    setUnpauseCountdown(3);
-    
-    const countdownInterval = setInterval(() => {
-      setUnpauseCountdown(prev => {
-        if (prev === null || prev <= 1) {
-          clearInterval(countdownInterval);
-          setGameState(prev => ({ ...prev, isPaused: false }));
-          setUnpauseCountdown(null);
-          playSound('correct'); // Satisfying unpause sound
-          toast.success("Game Resumed!", { duration: 1000 });
-          return null;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
-  // Testing functions for the testing panel
-  const handleTestingAddTime = (seconds: number) => {
-    if (showGameOver || gameState.isPaused) return;
-    
-    setGameState(prev => ({
-      ...prev,
-      timeRemaining: Math.max(0, prev.timeRemaining + seconds)
-    }));
-    
-    // Show penalty animation for visual feedback
-    if (seconds > 0) {
-      showPenaltyAnimation('time', seconds);
-      playSound('correct');
-    } else if (seconds < 0) {
-      showPenaltyAnimation('time', seconds);
-      playSound('incorrect');
-    }
-  };
-
-  const handleTestingAddScore = (points: number) => {
-    if (showGameOver) return;
-    
-    setGameState(prev => ({
-          ...prev,
-      score: Math.max(0, prev.score + points)
-    }));
-    
-    // Show penalty animation for visual feedback
-    if (points > 0) {
-      showPenaltyAnimation('score', points);
-      playSound('correct');
-    } else if (points < 0) {
-      showPenaltyAnimation('score', points);
-      playSound('incorrect');
-    }
-  };
-
-  const handleTestingAddCoins = (coins: number) => {
-    // This would integrate with a coin system if implemented
-    console.log(`Testing: Adding ${coins} coins`);
-    toast.success(`Added ${coins} coins!`, { duration: 1000 });
-  };
-
-  const handleTestingTriggerPopup = (type: 'penalty' | 'streak', value?: number) => {
-    if (type === 'penalty' && value !== undefined) {
-      showPenaltyAnimation('time', value);
-      if (value > 0) {
-        playSound('correct');
-      } else {
-      playSound('incorrect');
-      }
-    } else if (type === 'streak') {
-      const messages = ['HOT!', 'ON FIRE!', 'UNSTOPPABLE!', 'LEGENDARY!', 'GODLIKE!', 'NEW PB!'];
-      const randomMessage = messages[Math.floor(Math.random() * messages.length)];
-      const randomType = randomMessage === 'NEW PB!' ? 'pb' : 'milestone';
-      
-      showStreakPopup(randomType as 'milestone' | 'pb', randomMessage);
-      playSound('achievement');
-    }
-  };
-
-  const handleTestingPauseToggle = () => {
-    if (gameState.isPaused) {
-      handleUnpause();
-    } else {
-      handlePause();
-    }
-  };
-
-  const handleTestingResetData = () => {
-    if (window.confirm('⚠️ Are you sure you want to reset ALL game data? This cannot be undone!')) {
-      localStorage.clear();
-      toast.success('All data reset!', { duration: 2000 });
-      window.location.reload();
-    }
-  };
-
-  // Update testing context with current game state
-  useEffect(() => {
-    if (testing) {
-      // Override the testing context functions with game-specific implementations
-      testing.addTime = handleTestingAddTime;
-      testing.addScore = handleTestingAddScore;
-      testing.addCoins = handleTestingAddCoins;
-      testing.triggerPenaltyPopup = (value) => handleTestingTriggerPopup('penalty', value);
-      testing.triggerStreakPopup = (type) => handleTestingTriggerPopup('streak');
-      testing.pauseToggle = handleTestingPauseToggle;
-      testing.resetAllData = handleTestingResetData;
-    }
-  }, [testing, gameState, showGameOver]);
 
   const handleQuit = () => {
     if (showGameOver) return;
@@ -805,14 +485,10 @@ const Game = () => {
         correctAnswers,
         accuracy,
         timeSpent: totalTimeSpent,
-        bestCombo: longestCombo,
+        combo: longestCombo,
         questionsSkipped: gameState.questionsSkipped,
-        skipPenalty: gameState.questionsSkipped * 2, // Assuming 2 points penalty per skip
-        skipEfficiency: gameState.questionsSkipped > 0 ? (gameState.questionsAnswered / (gameState.questionsAnswered + gameState.questionsSkipped)) * 100 : 100,
         totalPauseTime: finalPauseTime,
-        startTime: Date.now() - totalTimeSpent * 1000,
-        endTime: Date.now(),
-        questions: [], // Empty array for now, could be populated with actual questions
+        date: new Date(),
       });
     } catch (error) {
       console.error('Error saving game history:', error);
@@ -828,13 +504,11 @@ const Game = () => {
         mode: mode as 'quick' | 'training',
         score: gameState.score,
         questionsAnswered: gameState.questionsAnswered,
+        correctAnswers,
         accuracy,
         timeSpent: totalTimeSpent,
-        bestCombo: longestCombo,
-        questionsSkipped: gameState.questionsSkipped,
-        skipEfficiency: gameState.questionsSkipped > 0 ? (gameState.questionsAnswered / (gameState.questionsAnswered + gameState.questionsSkipped)) * 100 : 100,
-        achievedAt: Date.now(),
-        gameId: `game_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        combo: longestCombo,
+        date: new Date(),
       });
     } catch (error) {
       console.error('Error saving high score:', error);
@@ -906,6 +580,9 @@ const Game = () => {
             if (levelData) {
               setLevelUpData({
                 level: levelData.level,
+                name: levelData.name,
+                icon: levelData.icon,
+                color: levelData.color,
                 rewards: levelData.rewards
               });
         setShowLevelUp(true);
@@ -915,50 +592,6 @@ const Game = () => {
       }
     } catch (error) {
       console.error('Error updating daily tasks:', error);
-    }
-    
-    // Award coins for game completion
-    awardCoinsForGamePlayed(difficulty);
-    
-    // Update ELO rating based on performance
-    try {
-      const performance = (correctAnswers / gameState.questionsAnswered) * 100;
-      const eloCalculation = eloSystem.updateElo(
-        performance,
-        validCategory,
-        mode,
-        gameState.questionsAnswered,
-        totalTimeSpent
-      );
-      
-      console.log('🎯 ELO Update:', {
-        category: validCategory,
-        performance: Math.round(performance),
-        ratingChange: eloCalculation.ratingChange,
-        newRating: eloCalculation.newRating,
-        expectedScore: eloCalculation.expectedScore?.toFixed(2) || '0.00',
-        actualScore: eloCalculation.actualScore?.toFixed(2) || '0.00'
-      });
-      
-      // Show ELO change in toast
-      if (eloCalculation.ratingChange > 0) {
-        toast.success(`Rating increased by ${eloCalculation.ratingChange}!`, {
-          description: `New ${validCategory} rating: ${eloCalculation.newRating}`,
-          duration: 4000,
-        });
-      } else if (eloCalculation.ratingChange < 0) {
-        toast.warning(`Rating decreased by ${Math.abs(eloCalculation.ratingChange)}`, {
-          description: `New ${validCategory} rating: ${eloCalculation.newRating}`,
-          duration: 4000,
-        });
-      } else {
-        toast.info(`Rating unchanged`, {
-          description: `${validCategory} rating: ${eloCalculation.newRating}`,
-          duration: 3000,
-        });
-      }
-    } catch (error) {
-      console.error('Error updating ELO:', error);
     }
     
     setShowGameOver(true);
@@ -986,291 +619,17 @@ const Game = () => {
 
   if (showGameOver) {
     return (
-      <div className="min-h-screen p-3 sm:p-4 md:p-6 lg:p-8 flex items-center justify-center animate-fade-in">
-        <Card className="w-full max-w-sm sm:max-w-md md:max-w-2xl border-accent/50 shadow-elegant">
-          <CardContent className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
-            <div className="text-center">
-              <Trophy className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-3 sm:mb-4 text-accent" />
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-2">Game Complete!</h1>
-              <p className="text-sm sm:text-base md:text-lg text-muted-foreground">
-                {mode === "quick" ? "Time Trial" : mode === "classic" ? "Classic" : "Training"} • {validCategory} • {validDifficulty}
-              </p>
-                </div>
-
-            {/* Psychologically Powerful Stats - 6 Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              {/* 1. Personal Best vs Current Score - Achievement Gap */}
-              <Card className="border-gray-200 bg-white">
-                <CardContent className="p-3 sm:p-4 text-center">
-                  <Trophy className="h-5 w-5 sm:h-6 sm:w-6 mx-auto mb-2 text-gray-600" />
-                  <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
-                    {gameState.score}
-                </div>
-                  <p className="text-xs text-gray-600 font-medium">Your Score</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {gameState.score >= 10 ? "New Personal Best!" : "Beat your best!"}
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* 2. Accuracy with Motivation */}
-              <Card className="border-gray-200 bg-white">
-                <CardContent className="p-3 sm:p-4 text-center">
-                  <Target className="h-5 w-5 sm:h-6 sm:w-6 mx-auto mb-2 text-gray-600" />
-                  <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">{accuracy}%</div>
-                  <p className="text-xs text-gray-600 font-medium">Accuracy</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {accuracy >= 80 ? "Excellent!" : accuracy >= 60 ? "Good!" : "Keep improving!"}
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* 3. Combo Streak - Momentum Builder */}
-              <Card className="border-gray-200 bg-white">
-                <CardContent className="p-3 sm:p-4 text-center">
-                  <Flame className="h-5 w-5 sm:h-6 sm:w-6 mx-auto mb-2 text-gray-600" />
-                  <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">{longestCombo}x</div>
-                  <p className="text-xs text-gray-600 font-medium">Best Combo</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {longestCombo >= 5 ? "On Fire!" : "Build momentum!"}
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* 4. Questions Answered - Progress */}
-              <Card className="border-gray-200 bg-white">
-                <CardContent className="p-3 sm:p-4 text-center">
-                  <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6 mx-auto mb-2 text-gray-600" />
-                  <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
-                    {gameState.questionsAnswered}
-                </div>
-                  <p className="text-xs text-gray-600 font-medium">Questions</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {gameState.questionsAnswered >= 10 ? "Knowledge Master!" : "Keep learning!"}
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* 5. Time Performance - Speed Challenge */}
-              <Card className="border-gray-200 bg-white">
-                <CardContent className="p-3 sm:p-4 text-center">
-                  <Clock className="h-5 w-5 sm:h-6 sm:w-6 mx-auto mb-2 text-gray-600" />
-                  <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
-                    {Math.round((totalTime - gameState.timeRemaining) / gameState.questionsAnswered * 10) / 10}s
-                </div>
-                  <p className="text-xs text-gray-600 font-medium">Avg/Question</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {Math.round((totalTime - gameState.timeRemaining) / gameState.questionsAnswered * 10) / 10 <= 3 ? "Lightning Fast!" : "Speed up!"}
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* 6. Streak Counter - Habit Formation */}
-              <Card className="border-gray-200 bg-white">
-                <CardContent className="p-3 sm:p-4 text-center">
-                  <Trophy className="h-5 w-5 sm:h-6 sm:w-6 mx-auto mb-2 text-gray-600" />
-                  <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
-                    {consecutiveStats.currentStreak}
-              </div>
-                  <p className="text-xs text-gray-600 font-medium">Game Streak</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {consecutiveStats.currentStreak >= 3 ? "Streak Master!" : "Build your streak!"}
-                  </p>
-          </CardContent>
-        </Card>
-            </div>
-            
-            {/* Stats Bar - Moved Down */}
-            <Card className="border-gray-200 bg-white shadow-sm">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <Badge variant="secondary" className="capitalize bg-gray-100 text-gray-700 border-gray-200">
-                      {category}
-                    </Badge>
-                    <span className="text-sm font-medium text-gray-600">
-                      Questions Answered: <span className="text-gray-900 font-bold">{gameState.questionsAnswered}</span>
-                    </span>
-                    <span className="text-sm font-medium text-gray-600">
-                      Accuracy: <span className="text-gray-900 font-bold">{accuracy}%</span>
-                    </span>
-      </div>
-            </div>
-          </CardContent>
-        </Card>
-            {(() => {
-              try {
-                const unlockedAchievements = getUnlockedAchievements();
-                const recentAchievements = unlockedAchievements.filter(a => 
-                  Date.now() - a.unlockedAt < 60000 // Show achievements unlocked in last minute
-                );
-                
-                if (recentAchievements.length > 0) {
-    return (
-                    <div className="space-y-3">
-                      <h3 className="text-lg font-semibold text-foreground text-center">
-                        🏆 Achievements Unlocked!
-                      </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {recentAchievements.map((achievement) => (
-                          <div 
-                            key={achievement.id}
-                            className="flex items-center gap-3 p-3 bg-gradient-primary rounded-lg border border-accent/50"
-                          >
-                            <div className="text-2xl">{achievement.icon}</div>
-                            <div className="flex-1 min-w-0">
-                              <div className="font-semibold text-primary-foreground text-sm">
-                                {achievement.name}
-                              </div>
-                              <div className="text-xs text-primary-foreground/80">
-                                {achievement.description}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-        </div>
-      </div>
-    );
-  }
-              } catch (error) {
-                console.error('Error displaying achievements:', error);
-              }
-              return null;
-            })()}
-
-            {/* UX-Optimized Action Buttons */}
-            <div className="space-y-3 sm:space-y-4">
-              {/* Primary Action: Replay - Large & Prominent */}
-              <Button
-                size="lg"
-                onClick={() => window.location.reload()}
-                className="w-full min-h-[48px] sm:h-16 bg-black hover:bg-gray-800 text-white text-lg sm:text-xl font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
-              >
-                <div className="flex items-center justify-center gap-2 sm:gap-3">
-                  <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-700 rounded-full flex items-center justify-center">
-                    <RotateCcw className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
-        </div>
-                  <span>Replay</span>
-                </div>
-              </Button>
-
-              {/* Secondary Actions Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-            <Button
-              variant="outline"
-                  size="lg"
-              onClick={() => navigate("/play")}
-                  className="min-h-[44px] sm:h-12 bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gray-100 rounded-full flex items-center justify-center">
-                      <span className="text-xs font-bold">🔄</span>
-                    </div>
-                    <span>New Game</span>
-                  </div>
-            </Button>
-
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={() => navigate("/")}
-                  className="min-h-[44px] sm:h-12 bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gray-100 rounded-full flex items-center justify-center">
-                      <span className="text-xs font-bold">🏠</span>
-          </div>
-                    <span>Home</span>
-                  </div>
-                </Button>
-              </div>
-
-              {/* Social Sharing Row */}
-              <div className="space-y-3">
-                <div className="text-center">
-                  <p className="text-sm text-gray-600 mb-3">Share your score and earn coins!</p>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const result = quickShare({
-                        score: gameState.score,
-                        streak: longestCombo,
-                        gameMode: mode,
-                        difficulty,
-                        category
-                      }, 'twitter');
-                      if (result.success && result.coinsAwarded) {
-                        toast.success(`+${result.coinsAwarded} coins earned!`, {
-                          description: 'Thanks for sharing to Twitter!',
-                        });
-                      }
-                    }}
-                    className="h-10 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all duration-200"
-                  >
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm">🐦</span>
-                      <span className="text-xs font-medium">Twitter</span>
-                    </div>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const result = quickShare({
-                        score: gameState.score,
-                        streak: longestCombo,
-                        gameMode: mode,
-                        difficulty,
-                        category
-                      }, 'linkedin');
-                      if (result.success && result.coinsAwarded) {
-                        toast.success(`+${result.coinsAwarded} coins earned!`, {
-                          description: 'Thanks for sharing to LinkedIn!',
-                        });
-                      }
-                    }}
-                    className="h-10 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all duration-200"
-                  >
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm">💼</span>
-                      <span className="text-xs font-medium">LinkedIn</span>
-                    </div>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const result = quickShare({
-                        score: gameState.score,
-                        streak: longestCombo,
-                        gameMode: mode,
-                        difficulty,
-                        category
-                      }, 'facebook');
-                      if (result.success && result.coinsAwarded) {
-                        toast.success(`+${result.coinsAwarded} coins earned!`, {
-                          description: 'Thanks for sharing to Facebook!',
-                        });
-                      }
-                    }}
-                    className="h-10 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all duration-200"
-                  >
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm">📘</span>
-                      <span className="text-xs font-medium">Facebook</span>
-                    </div>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <GameOverScreen
+        gameOverPhase="complete"
+        gameState={gameState}
+        mode={mode}
+        category={category}
+        difficulty={difficulty}
+        accuracy={accuracy}
+        longestCombo={longestCombo}
+        consecutiveStats={consecutiveStats}
+        totalTime={totalTime}
+      />
     );
   }
 
@@ -1326,25 +685,48 @@ const Game = () => {
           </Card>
         )}
 
-            {/* Enhanced Progress Indicators */}
-            <div className="relative">
-              <EnhancedProgressIndicators
-                score={gameState.score}
-                combo={gameState.combo}
-                timeRemaining={gameState.timeRemaining}
-                questionsAnswered={gameState.questionsAnswered}
-                accuracy={Math.round(((gameState.score || 0) / Math.max(gameState.questionsAnswered, 1)) * 100)}
-                mode={mode}
-                isPaused={gameState.isPaused}
-                streakMilestone={5}
-                personalBest={10}
-              />
-              <div className="absolute top-4 right-4">
-                <HelpTrigger helpKey="game-progress" position="left" />
-              </div>
+        {/* Intense Header Design */}
+        <div className="space-y-6">
+          {/* Side Stats - Score and Combo First */}
+          <div className="grid grid-cols-2 gap-6 max-w-md mx-auto">
+            <Card className="border-gray-200 bg-white shadow-sm">
+              <CardContent className="p-3 text-center">
+                <Trophy className="h-5 w-5 mx-auto mb-1 text-gray-600" />
+                <div className="text-xl font-bold text-gray-900">
+                {gameState.score}
             </div>
+                <p className="text-xs text-gray-500">Score</p>
+              </CardContent>
+            </Card>
 
-        {/* Rain Effect Penalty Animation */}
+            <Card className="border-gray-200 bg-white shadow-sm">
+              <CardContent className="p-3 text-center">
+                <Flame className="h-5 w-5 mx-auto mb-1 text-orange-500" />
+                <div className="text-xl font-bold text-orange-500">
+                  {gameState.combo}x
+              </div>
+                <p className="text-xs text-gray-500">Combo</p>
+              </CardContent>
+            </Card>
+        </div>
+
+          {/* Big Time Display - Below Score and Combo */}
+          <div className="text-center">
+            <div className={`text-8xl font-black tracking-tight ${
+              gameState.timeRemaining <= 10 
+                ? 'text-red-500 animate-timer-urgent' 
+                : 'text-black'
+            }`}>
+              {Math.floor(gameState.timeRemaining / 60)}:
+              {(gameState.timeRemaining % 60).toString().padStart(2, "0")}
+            </div>
+            <p className="text-lg text-gray-600 mt-2 font-medium">
+              {(mode === "quick" || mode === "classic") ? "Time Left" : "Time Elapsed"}
+            </p>
+              </div>
+          </div>
+
+        {/* Single Penalty Animation - Perfect Size & Position */}
         {penaltyAnimations.map((anim) => (
           <div
             key={anim.id}
@@ -1354,42 +736,17 @@ const Game = () => {
                 : 'text-yellow-600'
             }`}
             style={{
-              top: `calc(50% + 10px + ${anim.position.y}px)`,
-              left: `calc(50% + 40px + ${anim.position.x}px)`,
-              fontSize: '1.2rem',
+              top: 'calc(50% + 20px)', // Same vertical position as timer
+              left: 'calc(50% + 80px)', // Positioned to the right of timer
+              fontSize: '2rem', // Perfect smaller size
               fontWeight: '900',
               textShadow: '0 0 15px rgba(0,0,0,0.6)',
               filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
-              animation: anim.value > 0 ? 'rainFallUp 3s ease-out forwards' : 'rainFallDown 3s ease-out forwards',
-              animationDelay: `${anim.delay}ms`,
-              transform: 'translateX(-50%)',
+              animation: anim.type === 'time' ? 'rainFallUp 2.5s ease-out forwards' : 'rainFallDown 2.5s ease-out forwards'
             }}
           >
             {anim.value > 0 ? `+${anim.value}` : anim.value}
             {anim.type === 'time' ? 's' : 'pt'}
-            </div>
-        ))}
-
-        {/* Subtle Streak Popups - Positioned Above Penalties */}
-        {streakPopups.map((popup) => (
-          <div
-            key={popup.id}
-            className={`fixed pointer-events-none z-50 ${
-              popup.type === 'pb' ? 'text-yellow-500' : 'text-orange-500'
-            }`}
-            style={{
-              top: `calc(50% - 10px + ${popup.position.y}px)`,
-              left: `calc(50% + 40px + ${popup.position.x}px)`,
-              fontSize: '1.1rem',
-              fontWeight: '800',
-              textShadow: '0 0 15px rgba(0,0,0,0.6)',
-              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
-              animation: 'rainFallUp 3s ease-out forwards',
-              animationDelay: `${popup.delay}ms`,
-              transform: 'translateX(-50%)',
-            }}
-          >
-            {popup.message}
           </div>
         ))}
 
@@ -1398,36 +755,23 @@ const Game = () => {
         <Card className={`border-border shadow-elegant animate-scale-in relative ${
           gameState.isPaused ? 'opacity-50' : ''
         }`}>
-          <CardContent className="p-4 sm:p-6 md:p-8">
+          <CardContent className="p-8">
         {/* Pause Overlay */}
         {gameState.isPaused && (
-              <div 
-                className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-lg cursor-pointer"
-                onClick={handleUnpause}
-              >
-                <div className="text-center space-y-3 sm:space-y-4 p-4">
-                  <Pause className="h-12 w-12 sm:h-16 sm:w-16 mx-auto text-muted-foreground" />
-                  <h3 className="text-xl sm:text-2xl font-bold text-muted-foreground">GAME PAUSED</h3>
-                  <p className="text-sm sm:text-base text-muted-foreground">Press Space or click anywhere to resume</p>
-                  
-                  {/* Countdown Display */}
-                  {unpauseCountdown !== null && (
-                    <div className="space-y-2">
-                      <div className="text-3xl sm:text-4xl font-bold text-green-500 animate-pulse">
-                        {unpauseCountdown}
-                      </div>
-                      <p className="text-xs sm:text-sm text-muted-foreground">Resuming in...</p>
-                    </div>
-                  )}
+              <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-lg">
+                <div className="text-center space-y-4">
+                  <Pause className="h-16 w-16 mx-auto text-muted-foreground" />
+                  <h3 className="text-2xl font-bold text-muted-foreground">GAME PAUSED</h3>
+                <p className="text-muted-foreground">Press Space or click Resume to continue</p>
                 </div>
           </div>
         )}
 
-            <div className="mb-6 sm:mb-8">
-              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground mb-3 sm:mb-4">
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-foreground mb-4">
                 {currentQuestion.buzzword}
               </h2>
-              <p className="text-sm sm:text-base md:text-lg text-muted-foreground">
+              <p className="text-lg text-muted-foreground">
                 What does this buzzword mean?
               </p>
             </div>
@@ -1465,21 +809,7 @@ const Game = () => {
               </div>
             )}
 
-            {/* Compact Timer Display - Right above answers for crucial visibility */}
-            <div className="mb-4 text-center">
-              <div className={`text-2xl sm:text-3xl font-black tracking-tight transition-all duration-300 ${
-                gameState.timeRemaining <= 5 ? 'text-red-500 animate-pulse' :
-                gameState.timeRemaining <= 10 ? 'text-orange-500 animate-bounce' : 'text-gray-800'
-              }`}>
-                {Math.floor(gameState.timeRemaining / 60)}:
-                {(gameState.timeRemaining % 60).toString().padStart(2, "0")}
-              </div>
-              <p className="text-xs text-gray-500 mt-1 font-medium">
-                {(mode === "quick" || mode === "classic") ? "Time Left" : "Time Elapsed"}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-2 sm:gap-3">
+            <div className="grid grid-cols-1 gap-3">
               {currentQuestion.options.map((option, index) => {
                 const isSelected = selectedAnswer === index;
                 const isCorrectAnswer = index === currentQuestion.correctAnswer;
@@ -1493,17 +823,17 @@ const Game = () => {
                     size="lg"
                     onClick={() => handleAnswer(index)}
                     disabled={showFeedback || gameState.isPaused}
-                    className={`min-h-[48px] sm:min-h-[52px] px-4 text-left justify-start font-medium transition-all duration-200 ${
+                    className={`h-12 px-4 text-left justify-start font-medium transition-all duration-200 ${
                       showCorrect
                         ? "bg-green-500 border-green-500 text-white hover:bg-green-500 animate-correct-answer"
                         : showWrong
                         ? "bg-red-500 border-red-500 text-white hover:bg-red-500 animate-incorrect-answer"
                         : gameState.isPaused
                         ? "opacity-50 cursor-not-allowed bg-gray-100 border-gray-200"
-                        : "bg-white border-gray-300 text-gray-900 hover:bg-black hover:border-black hover:text-white"
+                        : "bg-white border-gray-300 text-gray-900 hover:bg-gray-50 hover:border-gray-400"
                     }`}
                   >
-                    <span className="flex-1 text-sm sm:text-base">{option}</span>
+                    <span className="flex-1 text-sm">{option}</span>
                     {showCorrect && (
                       <CheckCircle2 className="h-5 w-5 text-white ml-2 flex-shrink-0" />
                     )}
@@ -1516,122 +846,50 @@ const Game = () => {
             </div>
 
             {/* Game Control Buttons - Clean & Sleek */}
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center mt-6 sm:mt-8">
+            <div className="flex gap-3 justify-center mt-8">
           <Button
             variant="outline"
                 size="sm"
             onClick={handleSkip}
                 disabled={showFeedback || gameState.isPaused}
-                className="min-h-[44px] px-4 bg-black border-black text-white hover:bg-gray-800 hover:border-gray-800 transition-all duration-200 font-medium text-sm"
+                className="h-9 px-4 bg-black border-black text-white hover:bg-gray-800 hover:border-gray-800 transition-all duration-200 font-medium text-sm"
           >
                 <SkipForward className="h-4 w-4 mr-2" />
                 Skip
+                <Badge variant="secondary" className="ml-2 bg-gray-700 text-white text-xs px-1.5 py-0.5">S</Badge>
           </Button>
               
-          {/* Smart Pause Manager */}
-          <div className="flex justify-center">
-            <SmartPauseManager
-              gameId={`game_${Date.now()}`}
-              gameState={gameState}
-              isPaused={gameState.isPaused}
-              onPause={handlePause}
-              onResume={handleUnpause}
-              onShowPauseHistory={() => {
-                // This would navigate to a pause history page
-                console.log('Show pause history');
-              }}
-            />
-          </div>
+          <Button
+            variant="outline"
+                size="sm"
+            onClick={handlePause}
+                disabled={showFeedback}
+                className="h-9 px-4 bg-black border-black text-white hover:bg-gray-800 hover:border-gray-800 transition-all duration-200 font-medium text-sm"
+          >
+            {gameState.isPaused ? (
+              <>
+                    <Play className="h-4 w-4 mr-2" />
+                    Resume
+                    <Badge variant="secondary" className="ml-2 bg-gray-700 text-white text-xs px-1.5 py-0.5">Space</Badge>
+              </>
+            ) : (
+              <>
+                    <Pause className="h-4 w-4 mr-2" />
+                    Pause
+                    <Badge variant="secondary" className="ml-2 bg-gray-700 text-white text-xs px-1.5 py-0.5">Space</Badge>
+              </>
+            )}
+          </Button>
               
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleQuit}
                 disabled={showGameOver}
-                className="min-h-[44px] px-4 bg-red-600 border-red-600 text-white hover:bg-red-700 hover:border-red-700 transition-all duration-200 font-medium text-sm"
+                className="h-9 px-4 bg-red-600 border-red-600 text-white hover:bg-red-700 hover:border-red-700 transition-all duration-200 font-medium text-sm"
               >
                 <X className="h-4 w-4 mr-2" />
                 Quit
-              </Button>
-              
-              {/* Test Button for Weighted Random Popups */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  // Weighted popup system - some are more likely than others
-                  const weightedPopups = [
-                    { type: 'milestone' as const, message: 'HOT!', weight: 40 },           // 40% chance
-                    { type: 'milestone' as const, message: 'ON FIRE!', weight: 25 },       // 25% chance
-                    { type: 'milestone' as const, message: 'UNSTOPPABLE!', weight: 15 },  // 15% chance
-                    { type: 'milestone' as const, message: 'LEGENDARY!', weight: 10 },    // 10% chance
-                    { type: 'milestone' as const, message: 'GODLIKE!', weight: 5 },       // 5% chance
-                    { type: 'pb' as const, message: 'NEW PB!', weight: 5 }                // 5% chance
-                  ];
-                  
-                  // Calculate total weight
-                  const totalWeight = weightedPopups.reduce((sum, popup) => sum + popup.weight, 0);
-                  
-                  // Generate random number and select weighted popup
-                  let randomNum = Math.random() * totalWeight;
-                  let selectedPopup = weightedPopups[0];
-                  
-                  for (const popup of weightedPopups) {
-                    randomNum -= popup.weight;
-                    if (randomNum <= 0) {
-                      selectedPopup = popup;
-                      break;
-                    }
-                  }
-                  
-                  // Clear any existing streak popups first (only 1 at a time)
-                  setStreakPopups([]);
-                  
-                  // Create single test popup
-                  const testPopup = {
-                    id: Math.random().toString(36).substr(2, 9),
-                    type: selectedPopup.type,
-                    message: selectedPopup.message,
-                    timestamp: Date.now(),
-                    position: { x: 0, y: 0 },
-                    index: 0,
-                    delay: 0
-                  };
-                  
-                  setStreakPopups([testPopup]);
-                  
-                  // Play unique sound for test popup
-                  playSound('notification');
-                  
-                  // Remove after 3 seconds
-                  setTimeout(() => {
-                    setStreakPopups(prev => prev.filter(popup => popup.id !== testPopup.id));
-                  }, 3000);
-                }}
-                className="h-9 px-4 bg-blue-600 border-blue-600 text-white hover:bg-blue-700 hover:border-blue-700 transition-all duration-200 font-medium text-sm"
-              >
-                <Target className="h-4 w-4 mr-2" />
-                Test
-              </Button>
-              
-              {/* Test Button for Penalty Animations */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const testTypes = ['time', 'score'];
-                  const testValues = [3, -5, 10, -2, 7];
-                  const randomType = testTypes[Math.floor(Math.random() * testTypes.length)];
-                  const randomValue = testValues[Math.floor(Math.random() * testValues.length)];
-                  showPenaltyAnimation(randomType as 'time' | 'score', randomValue);
-                  
-                  // Play unique sound for penalty test
-                  playSound('skip'); // Unique skip sound for penalty test button
-                }}
-                className="h-9 px-4 bg-green-600 border-green-600 text-white hover:bg-green-700 hover:border-green-700 transition-all duration-200 font-medium text-sm"
-              >
-                <Zap className="h-4 w-4 mr-2" />
-                Penalty
           </Button>
         </div>
           </CardContent>
@@ -1654,21 +912,8 @@ const Game = () => {
         isOpen={showLevelUp}
         onClose={() => setShowLevelUp(false)}
         levelData={levelUpData}
-        nextLevelProgress={levelUpData ? {
-          currentXp: getUserLevelProgress().currentXp,
-          nextLevelXp: getUserLevelProgress().xpToNext + getUserLevelProgress().currentXp,
-          progressToNextLevel: getUserLevelProgress().progress
-        } : undefined}
+        nextLevelProgress={levelUpData ? getUserLevelProgress() : undefined}
       />
-
-      {/* Flow Feedback */}
-      <FlowFeedback
-        flowState={flowState}
-        difficultyAdjustment={null}
-        isVisible={showFlowFeedback}
-        onClose={() => setShowFlowFeedback(false)}
-      />
-
     </div>
   );
 };

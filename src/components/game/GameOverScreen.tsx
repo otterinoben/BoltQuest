@@ -51,9 +51,7 @@ export const GameOverScreen: React.FC<GameOverScreenProps> = ({
   onAutoReplay
 }) => {
   const navigate = useNavigate();
-  const [autoReplayEnabled, setAutoReplayEnabled] = React.useState(() => 
-    userPreferencesManager.getAutoReplayEnabled()
-  );
+  const [autoReplayEnabled, setAutoReplayEnabled] = React.useState(false);
   const [autoReplayCountdown, setAutoReplayCountdown] = React.useState(0);
   const [autoReplayInterval, setAutoReplayInterval] = React.useState<NodeJS.Timeout | null>(null);
 

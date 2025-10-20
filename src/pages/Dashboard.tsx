@@ -132,7 +132,7 @@ const Dashboard = () => {
       case '#B9F2FF': return 'text-blue-500'; // Diamond
       case '#8A2BE2': return 'text-purple-600'; // Master
       case '#FF4500': return 'text-red-600'; // Grandmaster
-      case '#FFD700': return 'text-yellow-500'; // Challenger (same as Gold but different context)
+      case '#FF8C00': return 'text-orange-500'; // Challenger (different from Gold)
       default: return 'text-gray-600';
     }
   };
