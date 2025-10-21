@@ -460,20 +460,20 @@ const Play = () => {
         )}
 
         {/* Hero Section */}
-        <div className="relative overflow-hidden">
+        <div className="relative">
           {/* Background Elements */}
           <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 via-transparent to-purple-50/30" />
           <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-100/20 to-purple-100/20 rounded-full blur-3xl" />
           <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-green-100/20 to-blue-100/20 rounded-full blur-3xl" />
           
-          <div className="relative max-w-7xl mx-auto px-6 py-12">
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
             {/* Header */}
-            <div className="text-center mb-12">
-              <div className="flex items-center justify-center gap-4 mb-6">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-                  <Zap className="h-8 w-8 text-white" />
+            <div className="text-center mb-6 sm:mb-8">
+              <div className="flex items-center justify-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+                  <Zap className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
                 </div>
-                <h1 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tight">
+                <h1 className="text-3xl sm:text-4xl md:text-6xl font-black text-gray-900 tracking-tight">
                   BoltQuest
                 </h1>
               </div>

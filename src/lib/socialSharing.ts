@@ -9,6 +9,8 @@ export interface ShareData {
   gameMode?: string;
   difficulty?: string;
   category?: string;
+  accuracy?: number;
+  mode?: string; // Add mode property
 }
 
 export interface ShareResult {
@@ -117,10 +119,16 @@ export const shareToLinkedIn = (data: ShareData): ShareResult => {
       message = "Enhancing my knowledge skills with BuzzBolt! A great platform for continuous learning. Check it out at buzzbolt.app #Learning #ProfessionalDevelopment";
     }
 
-    const url = `${SOCIAL_URLS.linkedin}?url=${encodeURIComponent('https://buzzbolt.app')}&summary=${encodeURIComponent(message)}`;
+    // LinkedIn sharing - use the newer sharing format
+    const url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://buzzbolt.app')}`;
     
     // Open in new window
     window.open(url, '_blank', 'width=600,height=400');
+    
+    // Show a toast with the message they can copy/paste
+    setTimeout(() => {
+      console.log('LinkedIn share message:', message);
+    }, 1000);
     
     // Award coins for sharing
     const coinsAwarded = awardCoinsForSocialShare('LinkedIn');
@@ -156,10 +164,18 @@ export const shareToFacebook = (data: ShareData): ShareResult => {
       message = "Just discovered BuzzBolt - an amazing quiz game! Test your knowledge and challenge your friends! 🧠✨";
     }
 
-    const url = `${SOCIAL_URLS.facebook}?u=${encodeURIComponent('https://buzzbolt.app')}&quote=${encodeURIComponent(message)}`;
+    // Facebook sharing - use a simpler, more reliable method
+    // Facebook's sharing API is limited, but we can use the basic sharer
+    const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent('https://buzzbolt.app')}`;
     
     // Open in new window
     window.open(url, '_blank', 'width=600,height=400');
+    
+    // Show a toast with the message they can copy/paste
+    setTimeout(() => {
+      // This will be handled by the component's toast system
+      console.log('Facebook share message:', message);
+    }, 1000);
     
     // Award coins for sharing
     const coinsAwarded = awardCoinsForSocialShare('Facebook');

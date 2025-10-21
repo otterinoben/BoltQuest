@@ -17,6 +17,8 @@ import {
   checkItemUnlocked
 } from '@/lib/shopSystem';
 import { getCoinBalance } from '@/lib/coinSystem';
+import { getUserProfile, saveUserProfile } from '@/lib/userStorage';
+import { TitleManager } from '@/lib/titleSystem';
 import { ShopItem, ShopCategory } from '@/types/shop';
 import { 
   Coins, 
@@ -141,6 +143,21 @@ const Shop: React.FC = () => {
     }
 
     if (userOwnsItem(item.id)) {
+      // Special handling for titles
+      if (item.category === 'title') {
+        const userProfile = getUserProfile();
+        if (userProfile) {
+          const titleId = item.id.replace('-title', '');
+          userProfile.selectedTitle = titleId;
+          saveUserProfile(userProfile);
+          loadUserData();
+          toast.success('Title Equipped!', {
+            description: `${item.name} is now your selected title.`,
+          });
+        }
+        return;
+      }
+      
       // Item is owned, try to equip it
       const success = equipItem(item.id);
       if (success) {
@@ -162,12 +179,28 @@ const Shop: React.FC = () => {
     const result = purchaseItem(selectedItem.id);
     
     if (result.success) {
+      // Special handling for title purchases
+      if (selectedItem.category === 'title') {
+        const userProfile = getUserProfile();
+        if (userProfile) {
+          // Extract title ID from shop item ID (remove '-title' suffix)
+          const titleId = selectedItem.id.replace('-title', '');
+          userProfile.selectedTitle = titleId;
+          saveUserProfile(userProfile);
+          
+          toast.success('Title Purchased & Equipped!', {
+            description: `${selectedItem.name} has been purchased and automatically equipped!`,
+          });
+        }
+      } else {
+        toast.success('Purchase Successful!', {
+          description: result.message,
+        });
+      }
+      
       // Trigger unlock animation
       triggerUnlockAnimation(selectedItem, 'purchase');
       
-      toast.success('Purchase Successful!', {
-        description: result.message,
-      });
       loadUserData();
       setShowPurchaseDialog(false);
       setSelectedItem(null);
@@ -185,7 +218,13 @@ const Shop: React.FC = () => {
 
   const renderItemCard = (item: ShopItem) => {
     const isOwned = userOwnsItem(item.id);
-    const isEquipped = equippedItems[item.category] === item.id;
+    const isEquipped = item.category === 'title' 
+      ? (() => {
+          const userProfile = getUserProfile();
+          const titleId = item.id.replace('-title', '');
+          return userProfile?.selectedTitle === titleId;
+        })()
+      : equippedItems[item.category] === item.id;
     const isUnlocked = checkItemUnlocked(item);
     const IconComponent = getIconComponent(item.icon);
     const rarityGradient = getRarityGradient(item.rarity);
@@ -244,7 +283,7 @@ const Shop: React.FC = () => {
                   {isEquipped ? (
                     <>
                       <Check className="w-4 h-4" />
-                      Equipped
+                      {item.category === 'title' ? 'Selected' : 'Equipped'}
                     </>
                   ) : (
                     <>

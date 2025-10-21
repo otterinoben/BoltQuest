@@ -107,32 +107,27 @@ export class EloSystem {
     }
   }
 
-  // Calculate ELO change based on game result
+  // Calculate ELO change based on game result (simplified for new system)
   calculateEloChange(
     currentRating: number,
     performance: number, // 0-100 score
     category: string,
     opponentRating?: number
   ): EloCalculation {
+    // The actual ELO calculation is now handled in eloRewardsSystem.ts
+    // This method is kept for compatibility but simplified
     const actualScore = performance / 100; // Convert to 0-1 scale
     
-    // Use opponent rating or system rating based on performance
-    const systemRating = opponentRating || this.getSystemRatingForPerformance(performance);
-    const expectedScore = this.calculateExpectedScore(currentRating, systemRating);
-    
-    // Determine K-factor based on experience
-    const kFactor = this.getKFactor(this.userProfile.gamesPlayed);
-    
-    // Calculate rating change
-    const ratingChange = Math.round(kFactor * (actualScore - expectedScore));
+    // For now, return a simple calculation that will be overridden by eloRewardsSystem
+    const ratingChange = Math.round((performance - 50) * 0.5); // Simple linear change
     const newRating = Math.max(MIN_RATING, Math.min(MAX_RATING, currentRating + ratingChange));
 
     return {
       newRating,
       ratingChange,
-      expectedScore,
+      expectedScore: 0.5, // Not used in new system
       actualScore,
-      kFactor
+      kFactor: 0 // Not used in new system
     };
   }
 

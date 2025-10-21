@@ -81,6 +81,10 @@ export interface UserProfile {
   username: string;
   email?: string;
   avatar?: string;
+  bio?: string;
+  location?: string;
+  website?: string;
+  selectedTitle?: string; // ID of the selected title
   createdAt: number;
   lastActive: number;
   preferences: UserPreferences;
@@ -392,7 +396,7 @@ export const DEFAULT_AUTH_STATE: AuthState = {
 };
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
-  theme: 'system',
+  theme: 'light',
   soundEnabled: true,
   musicEnabled: true,
   notificationsEnabled: true,

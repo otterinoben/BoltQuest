@@ -1,96 +1,237 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { 
+  Trophy, 
+  Target, 
+  Flame, 
+  Coins, 
+  TrendingUp, 
+  Calendar,
+  Award,
+  Star,
+  Users,
+  Share2,
+  Settings,
+  Edit3,
+  Zap,
+  Brain,
+  Activity,
+  BarChart3,
+  Crown,
+  Medal,
+  ChevronRight,
+  Play,
+  Eye,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  ArrowUp,
+  ArrowDown,
+  Minus,
+  Save,
+  X,
+  User,
+  Mail,
+  Globe,
+  Camera,
+  Trash2,
+  AlertTriangle,
+  CheckCircle
+} from "lucide-react";
+import { motion } from "framer-motion";
+import { getUserProfile, saveUserProfile, updateUserAvatar } from "@/lib/userStorage";
+import { getGameHistoryByUserId } from "@/lib/gameHistoryStorage";
+import { EloSystem } from "@/lib/eloSystem";
+import { EloRankSystem } from "@/lib/eloRankSystem";
+import { TitleManager } from "@/lib/titleSystem";
+import { getUnlockedAchievements } from "@/lib/simpleAchievements";
 import { Link } from "react-router-dom";
-import { User, Settings, TrendingUp, Edit3, Award, Target, Activity, Brain, CheckCircle, Circle, ArrowRight, Zap, TrendingUp as TrendingUpIcon, Megaphone, DollarSign } from "lucide-react";
 import { toast } from "sonner";
-import { getUserProfile, resetUserStatistics } from "@/lib/userStorage";
-import { getGameHistoryByUserId, clearGameHistory } from "@/lib/gameHistoryStorage";
-import { ResetConfirmationModal } from "@/components/ResetConfirmationModal";
 import AvatarUpload from "@/components/AvatarUpload";
-import LevelDisplay from "@/components/LevelDisplay";
-import { useState, useEffect } from "react";
 
 const Profile = () => {
-  // State for user data - always get fresh data
-  const [userProfile, setUserProfile] = useState(() => {
-    try {
-      return getUserProfile();
-    } catch (error) {
-      console.error('Error getting user profile:', error);
-      return {
-        username: 'Guest User',
-        email: '',
-        avatar: '',
-        createdAt: new Date().toISOString(),
-        statistics: {
-          totalGamesPlayed: 0,
-          totalCorrectAnswers: 0,
-          bestScore: 0,
-          averageAccuracy: 0,
-          categoryStats: {}
-        },
-        preferences: {
-          interests: [],
-          customInterests: []
-        }
-      };
-    }
-  });
+  const [userProfile, setUserProfile] = useState(() => getUserProfile());
+  const [gameHistory, setGameHistory] = useState(() => getGameHistoryByUserId(userProfile.id));
+  const [eloData, setEloData] = useState<any>(null);
+  const [achievements, setAchievements] = useState<any[]>([]);
   
-  const [currentAvatar, setCurrentAvatar] = useState(userProfile.avatar || '');
-  const [isEditing, setIsEditing] = useState(false);
-  const [showResetModal, setShowResetModal] = useState(false);
-  const [gameHistory, setGameHistory] = useState(() => {
-    try {
-      return getGameHistoryByUserId(userProfile.id);
-    } catch (error) {
-      console.error('Error getting game history:', error);
-      return [];
-    }
+  // Edit profile state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    username: userProfile?.username || '',
+    email: userProfile?.email || '',
+    bio: userProfile?.bio || '',
+    location: userProfile?.location || '',
+    website: userProfile?.website || '',
+    avatar: userProfile?.avatar || '',
+    selectedTitle: userProfile?.selectedTitle || ''
   });
 
-  // Always get fresh data when component mounts or updates
+  // Delete profile state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
+
   useEffect(() => {
     const refreshData = () => {
-      try {
         const freshProfile = getUserProfile();
         const freshHistory = getGameHistoryByUserId(freshProfile.id);
         setUserProfile(freshProfile);
-        setCurrentAvatar(freshProfile.avatar || '');
         setGameHistory(freshHistory);
-      } catch (error) {
-        console.error('Error refreshing data:', error);
-      }
+      
+      // Get ELO data
+      const eloSystem = new EloSystem();
+      const eloRating = eloSystem.getOverallRating();
+      const eloRankDisplay = EloRankSystem.getEloRankDisplay(eloRating, 0);
+      setEloData({ rating: eloRating, rankDisplay: eloRankDisplay });
+      
+      // Get achievements
+      setAchievements(getUnlockedAchievements());
     };
 
-    // Refresh on mount
     refreshData();
-
-    // Refresh when window gains focus (user returns from another page)
-    const handleFocus = () => refreshData();
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-    };
+    const interval = setInterval(refreshData, 5000); // Update every 5 seconds
+    return () => clearInterval(interval);
   }, []);
 
-  // Calculate stats from real data with safe fallbacks
+  // Calculate stats
   const totalGames = userProfile?.statistics?.totalGamesPlayed || 0;
-  const totalScore = userProfile?.statistics?.totalScore || 0;
-  const avgScore = totalGames > 0 ? Math.round(totalScore / totalGames) : 0;
-  const bestScore = userProfile?.statistics?.bestScore || 0;
+  const totalScore = userProfile?.statistics?.bestScore || 0;
   const avgAccuracy = userProfile?.statistics?.averageAccuracy || 0;
+  const bestScore = userProfile?.statistics?.bestScore || 0;
+  const currentStreak = userProfile?.streak || 0;
+  const totalCoins = userProfile?.coins || 0;
+  const currentLevel = userProfile?.level || 1;
+  const totalXp = userProfile?.totalXp || 0;
 
-  // Calculate category performance with safe fallbacks
+  // Calculate XP for next level (assuming 100 XP per level)
+  const xpForNextLevel = currentLevel * 100;
+  const xpProgress = ((totalXp % 100) / 100) * 100;
+
+  // Get recent games for activity
+  const recentGames = gameHistory.slice(0, 5);
+  
+  // Calculate win rate
+  const wins = userProfile?.eloRating?.wins || 0;
+  const losses = userProfile?.eloRating?.losses || 0;
+  const totalMatches = wins + losses;
+  const winRate = totalMatches > 0 ? Math.round((wins / totalMatches) * 100) : 0;
+
+  // Edit profile functions
+  const handleEditProfile = () => {
+    setEditForm({
+      username: userProfile?.username || '',
+      email: userProfile?.email || '',
+      bio: userProfile?.bio || '',
+      location: userProfile?.location || '',
+      website: userProfile?.website || '',
+      avatar: userProfile?.avatar || '',
+      selectedTitle: userProfile?.selectedTitle || ''
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveProfile = () => {
+    try {
+      const updatedProfile = {
+        ...userProfile,
+        username: editForm.username.trim(),
+        email: editForm.email.trim(),
+        bio: editForm.bio.trim(),
+        location: editForm.location.trim(),
+        website: editForm.website.trim(),
+        avatar: editForm.avatar.trim(),
+        selectedTitle: editForm.selectedTitle.trim()
+      };
+      
+      // Save avatar to storage if it has changed
+      if (editForm.avatar !== userProfile?.avatar) {
+        updateUserAvatar(editForm.avatar);
+      }
+      
+      saveUserProfile(updatedProfile);
+      setUserProfile(updatedProfile);
+      setIsEditModalOpen(false);
+      toast.success("Profile updated successfully!");
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      toast.error("Failed to save profile. Please try again.");
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditModalOpen(false);
+    setEditForm({
+      username: userProfile?.username || '',
+      email: userProfile?.email || '',
+      bio: userProfile?.bio || '',
+      location: userProfile?.location || '',
+      website: userProfile?.website || '',
+      avatar: userProfile?.avatar || '',
+      selectedTitle: userProfile?.selectedTitle || ''
+    });
+    // Reset avatar preview to original if it was changed
+    if (editForm.avatar !== userProfile?.avatar) {
+      // Avatar will be reset when form is reset above
+    }
+  };
+
+  // Delete profile functions
+  const handleDeleteProfile = () => {
+    setIsDeleteModalOpen(true);
+    setDeleteConfirmation('');
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteConfirmation !== 'DELETE') {
+      toast.error("Please type 'DELETE' to confirm");
+      return;
+    }
+
+    setIsDeleting(true);
+    
+    try {
+      // Show success animation
+      setShowDeleteSuccess(true);
+      
+      // Wait for animation to complete
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Clear all user data
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Redirect to onboarding
+      window.location.href = '/onboarding';
+      
+    } catch (error) {
+      console.error('Error deleting profile:', error);
+      toast.error("Failed to delete profile. Please try again.");
+      setIsDeleting(false);
+      setShowDeleteSuccess(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setIsDeleteModalOpen(false);
+    setDeleteConfirmation('');
+    setIsDeleting(false);
+    setShowDeleteSuccess(false);
+  };
+
+  // Get best performing category
   const categoryStats = userProfile?.statistics?.categoryStats || {};
   const categories = Object.keys(categoryStats);
-  
-  // Get best performing category
   const bestCategory = categories.reduce((best, category) => {
     const current = categoryStats[category];
     const bestData = categoryStats[best];
@@ -99,407 +240,334 @@ const Profile = () => {
       (current ? category : best);
   }, categories[0] || 'general');
 
-  // Get recent performance (last 5 games)
-  const recentGames = getGameHistoryByUserId(userProfile.id).slice(0, 5);
-  const recentAvgAccuracy = recentGames.length > 0 ? 
-    Math.round(recentGames.reduce((sum, game) => sum + (game.accuracy || 0), 0) / recentGames.length) : 0;
-
-  const handleSave = () => {
-    toast.success("Profile updated successfully");
-    setIsEditing(false);
+  // Animation variants
+  const fadeInUp = {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.5 }
   };
 
-  const handleResetStats = () => {
-    setShowResetModal(true);
+  const staggerChildren = {
+    animate: {
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
   };
-
-  const handleResetComplete = () => {
-    // Refresh the profile data after reset
-    const freshProfile = getUserProfile();
-    const freshHistory = getGameHistoryByUserId(freshProfile.id);
-    setUserProfile(freshProfile);
-    setGameHistory(freshHistory);
-    // Reload the page to ensure all components refresh
-    window.location.reload();
-  };
-
-  // Calculate profile completion percentage
-  const calculateProfileCompletion = () => {
-    const profile = userProfile;
-    let completedFields = 0;
-    const totalFields = 5; // username, avatar, interests (min 3), custom interests, preferences
-
-    // Check username (not default "Guest User")
-    if (profile?.username && profile.username !== 'Guest User') {
-      completedFields++;
-    }
-
-    // Check avatar (has custom avatar)
-    if (profile?.avatar && profile.avatar !== '') {
-      completedFields++;
-    }
-
-    // Check interests (minimum 3)
-    const interests = profile?.preferences?.interests || [];
-    if (interests.length >= 3) {
-      completedFields++;
-    }
-
-    // Check custom interests
-    const customInterests = profile?.preferences?.customInterests || [];
-    if (customInterests.length > 0) {
-      completedFields++;
-    }
-
-    // Check if preferences are customized (not default)
-    const hasCustomPreferences = profile?.preferences && (
-      profile.preferences.defaultTimer !== 20 ||
-      profile.preferences.showHints !== false ||
-      profile.preferences.defaultDifficulty !== 'easy' ||
-      profile.preferences.defaultCategory !== 'general'
-    );
-    if (hasCustomPreferences) {
-      completedFields++;
-    }
-
-    return Math.round((completedFields / totalFields) * 100);
-  };
-
-  const profileCompletion = calculateProfileCompletion();
-
-  // Get completion suggestions
-  const getCompletionSuggestions = () => {
-    const suggestions = [];
-    const profile = userProfile;
-
-    if (!profile?.username || profile.username === 'Guest User') {
-      suggestions.push({
-        icon: User,
-        title: 'Add Username',
-        description: 'Set a custom display name',
-        link: '/profile',
-        completed: false
-      });
-    } else {
-      suggestions.push({
-        icon: User,
-        title: 'Username',
-        description: profile.username,
-        link: '/profile',
-        completed: true
-      });
-    }
-
-    if (!profile?.avatar || profile.avatar === '') {
-      suggestions.push({
-        icon: Circle,
-        title: 'Add Avatar',
-        description: 'Choose a profile picture',
-        link: '/profile',
-        completed: false
-      });
-    } else {
-      suggestions.push({
-        icon: CheckCircle,
-        title: 'Avatar',
-        description: 'Profile picture set',
-        link: '/profile',
-        completed: true
-      });
-    }
-
-    const interests = profile?.preferences?.interests || [];
-    if (interests.length < 3) {
-      suggestions.push({
-        icon: Brain,
-        title: 'Add Interests',
-        description: `Add ${3 - interests.length} more interests (minimum 3)`,
-        link: '/profile',
-        completed: false
-      });
-    } else {
-      suggestions.push({
-        icon: CheckCircle,
-        title: 'Interests',
-        description: `${interests.length} interests selected`,
-        link: '/profile',
-        completed: true
-      });
-    }
-
-    return suggestions;
-  };
-
-  const completionSuggestions = getCompletionSuggestions();
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8 animate-fade-in">
-      {/* Header */}
-      <div className="text-center space-y-3 sm:space-y-4">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">Your Profile</h1>
-        <p className="text-sm sm:text-base md:text-lg text-muted-foreground max-w-2xl mx-auto">
-          Manage your account and track your progress
-        </p>
-      </div>
-
-      {/* Subtle Profile Suggestions */}
-      {profileCompletion < 100 && (
-        <Card className="border-border/50 bg-muted/20">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-primary/10">
-                  <Target className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">Personalize your experience</p>
-                  <p className="text-xs text-muted-foreground">
-                    Add interests and customize your profile
-                  </p>
-                </div>
-              </div>
-              <Link to="/profile">
-                <Button variant="ghost" size="sm" className="text-primary hover:text-primary">
-                  <Edit3 className="h-4 w-4" />
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Two Column Layout */}
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-        
-        {/* Left Column - Profile Overview & Personal Info */}
-        <div className="lg:col-span-1 space-y-4 sm:space-y-6">
-          
-          {/* Profile Overview */}
-          <Card className="border-border shadow-elegant">
-            <CardContent className="p-6">
-              <div className="flex flex-col items-center space-y-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-4 sm:p-6 md:p-8">
+      <motion.div 
+        className="max-w-7xl mx-auto space-y-6"
+        initial="initial"
+        animate="animate"
+        variants={staggerChildren}
+      >
+        {/* Profile Header */}
+        <motion.div variants={fadeInUp}>
+          <Card className="border-0 shadow-xl bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white overflow-hidden">
+            <CardContent className="p-6 sm:p-8">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+                {/* Avatar and Level */}
                 <div className="relative">
-                  <AvatarUpload
-                    currentAvatar={currentAvatar}
-                    username={userProfile?.username || 'Guest User'}
-                    onAvatarChange={(newAvatar) => {
-                      setCurrentAvatar(newAvatar);
-                      try {
-                        const freshProfile = getUserProfile();
-                        setUserProfile(freshProfile);
-                      } catch (error) {
-                        console.error('Error updating profile:', error);
-                      }
-                    }}
-                  />
+                  <Avatar className="w-20 h-20 sm:w-24 sm:h-24 border-4 border-white/20">
+                    <AvatarImage src={userProfile?.avatar} />
+                    <AvatarFallback className="bg-white/20 text-white text-xl font-bold">
+                      {userProfile?.username?.charAt(0) || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="absolute -bottom-2 -right-2 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full px-3 py-1 text-xs font-bold text-white shadow-lg">
+                    Lv.{currentLevel}
+                  </div>
                 </div>
                 
-                <div className="text-center space-y-2">
-                  <h2 className="text-2xl font-bold">{userProfile?.username || 'Guest User'}</h2>
-                  <p className="text-muted-foreground">
-                    Player since {userProfile?.createdAt ? new Date(userProfile.createdAt).getFullYear() : new Date().getFullYear()}
+                {/* User Info */}
+                <div className="flex-1 text-center sm:text-left">
+                  <h1 className="text-2xl sm:text-3xl font-bold mb-2">
+                    {userProfile?.username || 'Player'}
+                  </h1>
+                  
+                  {/* Title Display */}
+                  {(() => {
+                    const titleManager = TitleManager.getInstance();
+                    titleManager.initialize(userProfile);
+                    const selectedTitle = userProfile?.selectedTitle 
+                      ? titleManager.getTitleById(userProfile.selectedTitle)
+                      : titleManager.getBestTitle();
+                    
+                    if (selectedTitle) {
+                      return (
+                        <div className="mb-3">
+                          <Badge 
+                            className={`px-3 py-1 text-sm font-semibold ${
+                              selectedTitle.rarity === 'common' ? 'bg-gray-100 text-gray-700 border-gray-300' :
+                              selectedTitle.rarity === 'uncommon' ? 'bg-green-100 text-green-700 border-green-300' :
+                              selectedTitle.rarity === 'rare' ? 'bg-blue-100 text-blue-700 border-blue-300' :
+                              selectedTitle.rarity === 'epic' ? 'bg-purple-100 text-purple-700 border-purple-300' :
+                              'bg-yellow-100 text-yellow-700 border-yellow-300'
+                            }`}
+                          >
+                            {selectedTitle.name}
+                          </Badge>
+                          <p className="text-sm text-white/80 mt-1">
+                            {selectedTitle.description}
                   </p>
                 </div>
-
-                {/* Quick Stats */}
-                <div className="grid grid-cols-2 gap-4 w-full">
-                  <div className="text-center p-3 rounded-lg bg-secondary/30">
-                    <div className="text-2xl font-bold text-primary">{totalGames}</div>
-                    <div className="text-xs text-muted-foreground">Games</div>
+                      );
+                    }
+                    return null;
+                  })()}
+                  
+                  <div className="flex items-center justify-center sm:justify-start gap-2 mb-4">
+                    <span className="text-lg">{eloData?.rankDisplay?.currentRank?.icon}</span>
+                    <span className="text-lg font-semibold">
+                      {eloData?.rankDisplay?.currentRank?.tier} {eloData?.rankDisplay?.currentRank?.division}
+                    </span>
+                    <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                      {eloData?.rating || 1000} ELO
+                    </Badge>
                   </div>
-                  <div className="text-center p-3 rounded-lg bg-secondary/30">
-                    <div className="text-2xl font-bold text-primary">{Math.round(avgAccuracy)}%</div>
-                    <div className="text-xs text-muted-foreground">Accuracy</div>
+                  
+                  {/* Quick Stats */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold">{totalGames}</div>
+                      <div className="text-sm opacity-80">Games</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold">{avgAccuracy}%</div>
+                      <div className="text-sm opacity-80">Accuracy</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold">{winRate}%</div>
+                      <div className="text-sm opacity-80">Win Rate</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold">{bestScore}</div>
+                      <div className="text-sm opacity-80">Best Score</div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Reset All Data Button - Testing Only */}
-                <div className="w-full">
+                {/* Action Buttons */}
+                <div className="flex gap-2">
                   <Button 
-                    variant="outline" 
+                    variant="secondary" 
                     size="sm" 
-                    onClick={handleResetStats}
-                    className="w-full text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                    className="bg-white/20 hover:bg-white/30 text-white border-white/30"
+                    onClick={handleEditProfile}
                   >
-                    <Settings className="h-4 w-4 mr-2" />
-                    Reset All Data (Testing)
+                    <Edit3 className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    className="bg-white/20 hover:bg-white/30 text-white border-white/30"
+                    onClick={() => {
+                      const shareText = `Check out my BuzzBolt profile! Level ${currentLevel}, ${eloData?.rankDisplay?.currentRank?.tier} ${eloData?.rankDisplay?.currentRank?.division} with ${eloData?.rating || 1000} ELO! 🎯`;
+                      navigator.clipboard.writeText(shareText);
+                      toast.success("Profile link copied to clipboard!");
+                    }}
+                  >
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Share
                   </Button>
                 </div>
               </div>
             </CardContent>
           </Card>
+        </motion.div>
 
-          {/* Favorite Categories */}
-          <Card className="border-border shadow-elegant">
-            <CardHeader>
-              <CardTitle className="text-xl flex items-center gap-2">
-                <Brain className="h-5 w-5 text-primary" />
-                Favorite Categories
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Left Column - Gamification */}
+          <div className="lg:col-span-1 space-y-6">
+            
+            {/* Level Progress */}
+            <motion.div variants={fadeInUp}>
+              <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Zap className="h-5 w-5" />
+                    Level Progress
               </CardTitle>
-              <CardDescription>
-                Your preferred learning topics and interests
-              </CardDescription>
             </CardHeader>
             <CardContent>
-              {userProfile?.preferences?.interests && userProfile.preferences.interests.length > 0 ? (
                 <div className="space-y-4">
-                  <div className="flex flex-wrap gap-2">
-                    {userProfile.preferences.interests.map((cat) => (
-                      <Badge key={cat} variant="default" className="capitalize text-sm px-3 py-1">
-                        {cat}
-                      </Badge>
-                    ))}
-                    {userProfile.preferences.customInterests?.map((interest) => (
-                      <Badge key={`custom-${interest}`} variant="outline" className="capitalize text-sm px-3 py-1">
-                        {interest}
-                      </Badge>
-                    ))}
+                    <div className="text-center">
+                      <div className="text-3xl font-bold">{currentLevel}</div>
+                      <div className="text-sm opacity-80">Current Level</div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>{totalXp % 100} XP</span>
+                        <span>{xpForNextLevel} XP</span>
+                      </div>
+                      <Progress value={xpProgress} className="h-3 bg-white/20" />
+                    </div>
+                    <div className="text-center text-sm opacity-80">
+                      {100 - (totalXp % 100)} XP to next level
+                    </div>
                   </div>
-                  <div className="pt-2">
-                    <Link to="/profile">
-                      <Button variant="outline" size="sm" className="flex items-center gap-2">
-                        <Edit3 className="h-4 w-4" />
-                        Update Interests
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Streak Counter */}
+            <motion.div variants={fadeInUp}>
+              <Card className="border-0 shadow-lg bg-gradient-to-br from-orange-500 to-red-600 text-white">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Flame className="h-5 w-5" />
+                    Daily Streak
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center space-y-3">
+                    <div className="text-4xl font-bold">{currentStreak}</div>
+                    <div className="text-sm opacity-80">Days in a row</div>
+                    <Link to="/play">
+                      <Button variant="secondary" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
+                        <Play className="h-4 w-4 mr-2" />
+                        Play Now
                       </Button>
                     </Link>
                   </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Coins & Rewards */}
+            <motion.div variants={fadeInUp}>
+              <Card className="border-0 shadow-lg bg-gradient-to-br from-yellow-500 to-amber-600 text-white">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Coins className="h-5 w-5" />
+                    Coins & Rewards
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold">{totalCoins.toLocaleString()}</div>
+                      <div className="text-sm opacity-80">Total Coins</div>
                 </div>
-              ) : (
-                <div className="text-center py-8">
-                  <div className="p-4 rounded-full bg-muted/50 w-fit mx-auto mb-4">
-                    <Brain className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <h3 className="font-semibold text-lg mb-2">No interests selected yet</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Choose your favorite categories to get personalized recommendations
-                  </p>
-                  <Link to="/profile">
-                    <Button className="flex items-center gap-2">
-                      <Brain className="h-4 w-4" />
-                      Choose Your Interests
+                    <Link to="/shop">
+                      <Button variant="secondary" size="sm" className="w-full bg-white/20 hover:bg-white/30 text-white border-white/30">
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Shop
                     </Button>
                   </Link>
                 </div>
-              )}
             </CardContent>
           </Card>
+            </motion.div>
 
-          {/* Level Progress */}
-          <LevelDisplay variant="detailed" showProgress={true} showRewards={true} />
-
-          {/* Personal Information */}
-          <Card className="border-border shadow-elegant">
-            <CardHeader>
-              <CardTitle className="text-foreground">Personal Information</CardTitle>
+            {/* Recent Achievements */}
+            <motion.div variants={fadeInUp}>
+              <Card className="border-0 shadow-lg">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Trophy className="h-5 w-5 text-yellow-500" />
+                    Recent Achievements
+                  </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <div className="text-sm font-medium">{userProfile?.username || 'Guest User'}</div>
+                <CardContent>
+                  <div className="space-y-3">
+                    {achievements.slice(0, 3).map((achievement, index) => (
+                      <div key={index} className="flex items-center gap-3 p-2 rounded-lg bg-yellow-50">
+                        <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center">
+                          <Medal className="h-4 w-4 text-yellow-600" />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="text-sm font-medium">{userProfile?.email || "Not provided"}</div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="joinDate">Member Since</Label>
-                <div className="text-sm font-medium">
-                  {userProfile?.createdAt ? new Date(userProfile.createdAt).toLocaleDateString() : new Date().toLocaleDateString()}
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">{achievement.name}</div>
+                          <div className="text-xs text-gray-500">{achievement.description}</div>
                 </div>
               </div>
-              <Button 
-                variant="outline" 
-                className="w-full flex items-center gap-2" 
-                onClick={() => setIsEditing(!isEditing)}
-              >
-                <Edit3 className="h-4 w-4" />
-                {isEditing ? 'Cancel Editing' : 'Edit Profile'}
+                    ))}
+                    {achievements.length === 0 && (
+                      <div className="text-center py-4 text-gray-500">
+                        <Trophy className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <div className="text-sm">No achievements yet</div>
+                        <div className="text-xs">Start playing to earn achievements!</div>
+                      </div>
+                    )}
+                    <Link to="/achievements">
+                      <Button variant="outline" size="sm" className="w-full">
+                        <Award className="h-4 w-4 mr-2" />
+                        View All Achievements
               </Button>
+                    </Link>
+                  </div>
             </CardContent>
           </Card>
-
+            </motion.div>
         </div>
 
-        {/* Right Column - Analytics & Insights */}
-        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+          {/* Right Column - Analytics & Performance */}
+          <div className="lg:col-span-2 space-y-6">
           
-          {/* Key Insights */}
-          <Card className="border-border shadow-elegant">
+            {/* Performance Overview */}
+            <motion.div variants={fadeInUp}>
+              <Card className="border-0 shadow-lg">
             <CardHeader>
-              <CardTitle className="text-foreground">Key Insights</CardTitle>
-              <CardDescription>Your performance highlights</CardDescription>
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-blue-500" />
+                    Performance Overview
+                  </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 rounded-lg bg-secondary/30">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Award className="h-5 w-5 text-primary" />
-                    <h3 className="font-semibold">Best Category</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* ELO Rating */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">ELO Rating</span>
+                        <span className="text-2xl font-bold text-blue-600">{eloData?.rating || 1000}</span>
                   </div>
-                  <p className="text-2xl font-bold text-primary capitalize">{bestCategory}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {categoryStats[bestCategory]?.averageAccuracy ? 
-                      `${Math.round(categoryStats[bestCategory].averageAccuracy)}% accuracy` : 
-                      'No data yet'
-                    }
-                  </p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">Peak:</span>
+                        <span className="font-medium">{userProfile?.eloRating?.peakRating || 1000}</span>
+                </div>
+                      <Progress value={((eloData?.rating || 1000) / 2000) * 100} className="h-2" />
                 </div>
 
-                <div className="p-4 rounded-lg bg-secondary/30">
-                  <div className="flex items-center gap-3 mb-2">
-                    <TrendingUp className="h-5 w-5 text-primary" />
-                    <h3 className="font-semibold">Recent Performance</h3>
+                    {/* Best Category */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">Best Category</span>
+                        <span className="text-lg font-bold text-green-600 capitalize">{bestCategory}</span>
                   </div>
-                  <p className="text-2xl font-bold text-primary">{recentAvgAccuracy}%</p>
-                  <p className="text-sm text-muted-foreground">
-                    Last {recentGames.length} games
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-lg bg-secondary/30">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Brain className="h-5 w-5 text-primary" />
-                    <h3 className="font-semibold">Learning Focus</h3>
-                  </div>
-                  <p className="text-lg font-bold text-primary">
-                    {userProfile?.preferences?.interests?.length || 0} topics
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {userProfile?.preferences?.interests?.length ? 
-                      userProfile.preferences.interests.slice(0, 2).join(', ') + 
-                      (userProfile.preferences.interests.length > 2 ? '...' : '') :
-                      'No focus areas'
-                    }
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-lg bg-secondary/30">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Activity className="h-5 w-5 text-primary" />
-                    <h3 className="font-semibold">Recent Activity</h3>
-                  </div>
-                  <p className="text-lg font-bold text-primary">
-                    {recentGames.length} games
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {recentGames.length > 0 ? 
-                      `Last played ${new Date(recentGames[0].timestamp).toLocaleDateString()}` :
-                      'No recent games'
-                    }
-                  </p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">Accuracy:</span>
+                        <span className="font-medium">
+                          {categoryStats[bestCategory]?.averageAccuracy ? 
+                            `${Math.round(categoryStats[bestCategory].averageAccuracy)}%` : 
+                            'N/A'
+                          }
+                        </span>
+                      </div>
+                      <Progress 
+                        value={categoryStats[bestCategory]?.averageAccuracy || 0} 
+                        className="h-2" 
+                      />
                 </div>
               </div>
             </CardContent>
           </Card>
+            </motion.div>
 
           {/* Category Performance */}
-          <Card className="border-border shadow-elegant">
+            <motion.div variants={fadeInUp}>
+              <Card className="border-0 shadow-lg">
             <CardHeader>
-              <CardTitle className="text-foreground">Category Performance</CardTitle>
-              <CardDescription>Your accuracy across different topics</CardDescription>
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    <Brain className="h-5 w-5 text-purple-500" />
+                    Category Performance
+                  </CardTitle>
             </CardHeader>
             <CardContent>
-              {categories.length > 0 ? (
                 <div className="space-y-4">
                   {categories.map((category) => {
                     const stats = categoryStats[category];
@@ -510,104 +578,432 @@ const Profile = () => {
                       <div key={category} className="space-y-2">
                         <div className="flex justify-between items-center">
                           <span className="font-medium capitalize">{category}</span>
-                          <span className="text-sm text-muted-foreground">
-                            {Math.round(accuracy)}% ({gamesPlayed} games)
-                          </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-gray-500">{gamesPlayed} games</span>
+                              <span className="font-bold text-lg">{Math.round(accuracy)}%</span>
+                            </div>
+                          </div>
+                          <Progress value={accuracy} className="h-3" />
                         </div>
-                        <Progress value={accuracy} className="h-2" />
+                      );
+                    })}
+                    {categories.length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        <Brain className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <div className="text-lg font-medium mb-2">No category data yet</div>
+                        <div className="text-sm mb-4">Start playing to see your performance!</div>
+                        <Link to="/play">
+                          <Button>
+                            <Play className="h-4 w-4 mr-2" />
+                            Start Playing
+                          </Button>
+                        </Link>
                       </div>
-                    );
-                  })}
+                    )}
                 </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">
-                    No category data yet. Start playing to see your performance!
-                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Recent Activity */}
+            <motion.div variants={fadeInUp}>
+              <Card className="border-0 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-green-500" />
+                    Recent Activity
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {recentGames.map((game, index) => (
+                      <div key={index} className="flex items-center gap-4 p-3 rounded-lg bg-gray-50">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                          {game.accuracy >= 70 ? (
+                            <CheckCircle2 className="h-5 w-5 text-green-600" />
+                          ) : (
+                            <XCircle className="h-5 w-5 text-red-600" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium">{game.category} • {game.difficulty}</div>
+                          <div className="text-sm text-gray-500">
+                            {game.score} points • {game.accuracy}% accuracy
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-medium">
+                            {new Date(game.startTime).toLocaleDateString()}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {new Date(game.startTime).toLocaleTimeString()}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {recentGames.length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <div className="text-lg font-medium mb-2">No recent activity</div>
+                        <div className="text-sm mb-4">Start playing to see your activity!</div>
                   <Link to="/play">
-                    <Button className="mt-4">Start Playing</Button>
+                          <Button>
+                            <Play className="h-4 w-4 mr-2" />
+                            Start Playing
+                          </Button>
                   </Link>
                 </div>
               )}
+                  </div>
             </CardContent>
           </Card>
+            </motion.div>
 
           {/* Quick Actions */}
-          <Card className="border-border shadow-elegant">
+            <motion.div variants={fadeInUp}>
+              <Card className="border-0 shadow-lg">
             <CardHeader>
-              <CardTitle className="text-foreground">Quick Actions</CardTitle>
+                  <CardTitle className="text-xl">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Link to="/play">
-                  <Button className="w-full flex items-center gap-2" size="lg">
-                    <User className="h-4 w-4" />
-                    Play Now
+                      <Button className="h-16 flex flex-col gap-2 w-full" size="lg">
+                        <Play className="h-6 w-6" />
+                        <span>Play Now</span>
                   </Button>
                 </Link>
                 <Link to="/analytics">
-                  <Button variant="outline" className="w-full flex items-center gap-2" size="lg">
-                    <TrendingUp className="h-4 w-4" />
-                    View Analytics
+                      <Button variant="outline" className="h-16 flex flex-col gap-2 w-full" size="lg">
+                        <BarChart3 className="h-6 w-6" />
+                        <span>Analytics</span>
                   </Button>
                 </Link>
-                <Link to="/profile">
-                  <Button variant="outline" className="w-full flex items-center gap-2" size="lg">
-                    <Settings className="h-4 w-4" />
-                    Customize
+                    <Link to="/preferences">
+                      <Button variant="outline" className="h-16 flex flex-col gap-2 w-full" size="lg">
+                        <Settings className="h-6 w-6" />
+                        <span>Settings</span>
                   </Button>
                 </Link>
               </div>
             </CardContent>
           </Card>
+            </motion.div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Edit Profile Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+              <Edit3 className="h-6 w-6" />
+              Edit Profile
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {/* Avatar Section */}
+            <div className="space-y-4">
+              <Label className="text-lg font-semibold">Profile Picture</Label>
+              <div className="flex items-center gap-4">
+                <Avatar className="h-20 w-20">
+                  <AvatarImage src={editForm.avatar} />
+                  <AvatarFallback className="text-lg">
+                    {editForm.username.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="space-y-2">
+                  <AvatarUpload
+                    onAvatarChange={(newAvatar) => setEditForm(prev => ({ ...prev, avatar: newAvatar }))}
+                    currentAvatar={editForm.avatar}
+                    username={editForm.username || 'User'}
+                  />
+                  <p className="text-sm text-gray-500">
+                    Upload a new profile picture or use the default avatar
+                  </p>
+                </div>
         </div>
       </div>
 
-      {/* Profile Editing Modal */}
-      {isEditing && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>Edit Profile</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+            {/* Basic Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-username">Username</Label>
+                <Label htmlFor="username">Username *</Label>
                 <Input 
-                  id="edit-username" 
-                  placeholder="Enter username" 
-                  defaultValue={userProfile?.username || 'Guest User'}
+                  id="username"
+                  value={editForm.username}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, username: e.target.value }))}
+                  placeholder="Enter your username"
+                  maxLength={20}
                 />
+                <p className="text-xs text-gray-500">This will be displayed on your profile</p>
               </div>
+              
               <div className="space-y-2">
-                <Label htmlFor="edit-email">Email</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
-                  id="edit-email"
+                  id="email"
                   type="email"
-                  placeholder="Enter email"
-                  defaultValue={userProfile?.email || ""}
+                  value={editForm.email}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="Enter your email"
+                />
+                <p className="text-xs text-gray-500">Optional - for notifications</p>
+              </div>
+            </div>
+
+            {/* Bio */}
+            <div className="space-y-2">
+              <Label htmlFor="bio">Bio</Label>
+              <Textarea
+                id="bio"
+                value={editForm.bio}
+                onChange={(e) => setEditForm(prev => ({ ...prev, bio: e.target.value }))}
+                placeholder="Tell us about yourself..."
+                maxLength={200}
+                rows={3}
+              />
+              <p className="text-xs text-gray-500">
+                {editForm.bio.length}/200 characters
+              </p>
+            </div>
+
+            {/* Location and Website */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="location">Location</Label>
+                <Input
+                  id="location"
+                  value={editForm.location}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, location: e.target.value }))}
+                  placeholder="City, Country"
                 />
               </div>
-              <div className="flex gap-2">
-                <Button onClick={handleSave} size="sm">
-                  Save Changes
+              
+              <div className="space-y-2">
+                <Label htmlFor="website">Website</Label>
+                <Input
+                  id="website"
+                  value={editForm.website}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, website: e.target.value }))}
+                  placeholder="https://yourwebsite.com"
+                />
+              </div>
+            </div>
+
+            {/* Title Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="title">Title</Label>
+              <Select 
+                value={editForm.selectedTitle} 
+                onValueChange={(value) => setEditForm(prev => ({ ...prev, selectedTitle: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a title" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(() => {
+                    const titleManager = TitleManager.getInstance();
+                    titleManager.initialize(userProfile);
+                    const availableTitles = titleManager.getAvailableTitles();
+                    
+                    return availableTitles.map((title) => (
+                      <SelectItem key={title.id} value={title.id}>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm ${titleManager.getRarityColor(title.rarity)}`}>
+                            {title.name}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            ({title.category})
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ));
+                  })()}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500">
+                Titles unlock based on your level, rank, and achievements
+              </p>
+            </div>
+
+            {/* Danger Zone */}
+            <div className="pt-6 border-t border-red-200">
+              <h3 className="text-lg font-semibold text-red-600 mb-4 flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                Danger Zone
+              </h3>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-red-800">Delete Profile</h4>
+                    <p className="text-sm text-red-700">
+                      This will permanently delete your profile, all game data, achievements, 
+                      ELO rating, coins, and any other personal information. You will be 
+                      redirected to the onboarding process.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteProfile}
+                className="w-full h-12 flex items-center gap-2"
+              >
+                <Trash2 className="h-5 w-5" />
+                Delete Profile
                 </Button>
-                <Button variant="outline" onClick={() => setIsEditing(false)} size="sm">
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button 
+                variant="outline" 
+                onClick={handleCancelEdit}
+                className="flex items-center gap-2"
+              >
+                <X className="h-4 w-4" />
                   Cancel
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+              <Button 
+                onClick={handleSaveProfile}
+                disabled={!editForm.username.trim()}
+                className="flex items-center gap-2"
+              >
+                <Save className="h-4 w-4" />
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-      {/* Reset Confirmation Modal */}
-      <ResetConfirmationModal
-        isOpen={showResetModal}
-        onClose={() => setShowResetModal(false)}
-        onComplete={handleResetComplete}
-      />
+      {/* Delete Profile Modal */}
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-6 w-6" />
+              Delete Profile
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {/* Warning Message */}
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-red-800">This action cannot be undone</h4>
+                  <p className="text-sm text-red-700">
+                    This will permanently delete your profile, all game data, achievements, 
+                    ELO rating, coins, and any other personal information. You will be 
+                    redirected to the onboarding process.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Confirmation Input */}
+            <div className="space-y-2">
+              <Label htmlFor="deleteConfirmation" className="text-sm font-medium">
+                Type <span className="font-bold text-red-600">DELETE</span> to confirm:
+              </Label>
+              <Input
+                id="deleteConfirmation"
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                placeholder="DELETE"
+                className="border-red-200 focus:border-red-500"
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button 
+                variant="outline" 
+                onClick={handleCancelDelete}
+                disabled={isDeleting}
+                className="flex items-center gap-2"
+              >
+                <X className="h-4 w-4" />
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive"
+                onClick={handleConfirmDelete}
+                disabled={deleteConfirmation !== 'DELETE' || isDeleting}
+                className="flex items-center gap-2"
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Delete Profile
+                  </>
+                )}
+              </Button>
+            </div>
+        </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Success Animation */}
+      {showDeleteSuccess && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+        >
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.8, opacity: 0 }}
+            className="bg-white rounded-2xl p-8 text-center max-w-md mx-4"
+          >
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+              className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4"
+            >
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </motion.div>
+            <motion.h3
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="text-xl font-bold text-gray-900 mb-2"
+            >
+              Profile Deleted
+            </motion.h3>
+            <motion.p
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="text-gray-600"
+            >
+              Your profile has been successfully deleted. Redirecting to onboarding...
+            </motion.p>
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: "100%" }}
+              transition={{ delay: 0.5, duration: 1.5 }}
+              className="mt-4 h-2 bg-green-200 rounded-full overflow-hidden"
+            >
+              <div className="h-full bg-green-500 rounded-full" />
+            </motion.div>
+          </motion.div>
+        </motion.div>
+      )}
     </div>
   );
 };

@@ -38,7 +38,111 @@ const DEFAULT_SHOP_ITEMS: ShopItem[] = [
     status: 'coming_soon'
   },
 
-  // Themes (Coming Soon)
+  // Titles
+  {
+    id: 'beta-tester-title',
+    name: 'Beta Tester',
+    description: 'Helped shape the future of BuzzBolt',
+    category: 'title',
+    price: 1000,
+    icon: 'Award',
+    rarity: 'epic',
+    status: 'available',
+    effects: {
+      description: 'Shows your early support for BuzzBolt'
+    }
+  },
+  {
+    id: 'og-member-title',
+    name: 'OG Member',
+    description: 'One of the original BuzzBolt pioneers',
+    category: 'title',
+    price: 2500,
+    icon: 'Crown',
+    rarity: 'legendary',
+    status: 'available',
+    effects: {
+      description: 'Exclusive title for early adopters'
+    }
+  },
+  {
+    id: 'coin-collector-title',
+    name: 'Coin Collector',
+    description: 'Master of the coin economy',
+    category: 'title',
+    price: 500,
+    icon: 'Coins',
+    rarity: 'rare',
+    status: 'available',
+    effects: {
+      description: 'Shows your dedication to earning coins'
+    }
+  },
+  {
+    id: 'quiz-master-title',
+    name: 'Quiz Master',
+    description: 'Ultimate quiz knowledge seeker',
+    category: 'title',
+    price: 1500,
+    icon: 'Trophy',
+    rarity: 'epic',
+    status: 'available',
+    effects: {
+      description: 'Demonstrates your quiz expertise'
+    }
+  },
+  {
+    id: 'speed-demon-title',
+    name: 'Speed Demon',
+    description: 'Lightning-fast answer machine',
+    category: 'title',
+    price: 800,
+    icon: 'Zap',
+    rarity: 'rare',
+    status: 'available',
+    effects: {
+      description: 'Shows your quick thinking abilities'
+    }
+  },
+  {
+    id: 'accuracy-king-title',
+    name: 'Accuracy King',
+    description: 'Perfectionist extraordinaire',
+    category: 'title',
+    price: 1200,
+    icon: 'Target',
+    rarity: 'epic',
+    status: 'available',
+    effects: {
+      description: 'Celebrates your precision and accuracy'
+    }
+  },
+  {
+    id: 'streak-champion-title',
+    name: 'Streak Champion',
+    description: 'Unstoppable momentum master',
+    category: 'title',
+    price: 600,
+    icon: 'Flame',
+    rarity: 'rare',
+    status: 'available',
+    effects: {
+      description: 'Shows your consistency and dedication'
+    }
+  },
+  {
+    id: 'elite-gamer-title',
+    name: 'Elite Gamer',
+    description: 'Top-tier gaming excellence',
+    category: 'title',
+    price: 3000,
+    icon: 'Gem',
+    rarity: 'legendary',
+    status: 'available',
+    effects: {
+      description: 'The ultimate gaming achievement'
+    }
+  },
   {
     id: 'theme_dark_pro',
     name: 'Dark Mode Pro',
@@ -223,11 +327,11 @@ export const getShopCategories = (): ShopCategory[] => {
       items: items.filter(item => item.category === 'theme')
     },
     {
-      id: 'badges',
-      name: 'Badges',
-      description: 'Show off your achievements',
-      icon: 'Trophy',
-      items: items.filter(item => item.category === 'badge')
+      id: 'titles',
+      name: 'Titles',
+      description: 'Exclusive titles to show off your status',
+      icon: 'Award',
+      items: items.filter(item => item.category === 'title')
     },
     {
       id: 'powerups',

@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { TutorialProvider } from "@/contexts/TutorialContext";
@@ -38,7 +38,8 @@ import SimpleUserSetup from "@/components/SimpleUserSetup";
 
 const queryClient = new QueryClient();
 
-const App = () => {
+const AppContent = () => {
+  const navigate = useNavigate();
   const [showUserSetup, setShowUserSetup] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -56,24 +57,71 @@ const App = () => {
     checkUserProfile();
   }, []);
 
+  const handleOnboardingComplete = () => {
+    setShowUserSetup(false);
+    // Navigate to home page after onboarding completion
+    navigate("/", { replace: true });
+  };
+
   // Show loading state while checking user profile
   if (showUserSetup === null) {
     return (
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 flex items-center justify-center">
-            <div className="text-center space-y-4">
-              <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-              <p className="text-muted-foreground">Loading BoltQuest...</p>
-            </div>
-          </div>
-        </TooltipProvider>
-      </QueryClientProvider>
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-muted-foreground">Loading BoltQuest...</p>
+        </div>
+      </div>
     );
   }
 
+  return (
+    <>
+      {showUserSetup ? (
+        <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 flex items-center justify-center">
+          <SimpleUserSetup 
+            onComplete={handleOnboardingComplete}
+          />
+        </div>
+      ) : (
+        <SidebarProvider>
+          <div className="flex min-h-screen w-full">
+            <AppSidebar />
+            <div className="flex-1 flex flex-col relative">
+              <MobileHeader />
+              <main className="flex-1">
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/play" element={<Play />} />
+                  <Route path="/game" element={<Game />} />
+                  <Route path="/shop" element={<Shop />} />
+                  <Route path="/referrals" element={<Referrals />} />
+                  <Route path="/community" element={<Community />} />
+                  <Route path="/leaderboards" element={<Leaderboards />} />
+                  <Route path="/achievements" element={<Achievements />} />
+                  <Route path="/daily-tasks" element={<DailyTasks />} />
+                  <Route path="/analytics" element={<Analytics />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/preferences" element={<Preferences />} />
+                  <Route path="/help" element={<Help />} />
+                  <Route path="/testing" element={<Testing />} />
+                  <Route path="/whats-new" element={<WhatsNew />} />
+                  <Route path="/baseline-test" element={<BaselineTest />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </main>
+            </div>
+          </div>
+        </SidebarProvider>
+      )}
+      <TutorialManager pageId="dashboard" />
+      <TestingPanel />
+      <AdminDebugPanel />
+    </>
+  );
+};
+
+const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -86,46 +134,7 @@ const App = () => {
                     <Toaster />
                     <Sonner />
                     <BrowserRouter>
-                      {showUserSetup ? (
-                        <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 flex items-center justify-center">
-                          <SimpleUserSetup 
-                            onComplete={() => setShowUserSetup(false)}
-                          />
-                        </div>
-                      ) : (
-                        <SidebarProvider>
-                          <div className="flex min-h-screen w-full">
-                            <AppSidebar />
-                            <div className="flex-1 flex flex-col relative">
-                              <MobileHeader />
-                              <main className="flex-1">
-                                <Routes>
-                                  <Route path="/" element={<Dashboard />} />
-                                  <Route path="/play" element={<Play />} />
-                                  <Route path="/game" element={<Game />} />
-                                  <Route path="/shop" element={<Shop />} />
-                                  <Route path="/referrals" element={<Referrals />} />
-                                  <Route path="/community" element={<Community />} />
-                                  <Route path="/leaderboards" element={<Leaderboards />} />
-                                  <Route path="/achievements" element={<Achievements />} />
-                                  <Route path="/daily-tasks" element={<DailyTasks />} />
-                                  <Route path="/analytics" element={<Analytics />} />
-                                  <Route path="/profile" element={<Profile />} />
-                                  <Route path="/preferences" element={<Preferences />} />
-                                  <Route path="/help" element={<Help />} />
-                                  <Route path="/testing" element={<Testing />} />
-                                  <Route path="/whats-new" element={<WhatsNew />} />
-                                  <Route path="/baseline-test" element={<BaselineTest />} />
-                                  <Route path="*" element={<NotFound />} />
-                                </Routes>
-                              </main>
-                            </div>
-                          </div>
-                        </SidebarProvider>
-                      )}
-                      <TutorialManager pageId="dashboard" />
-                      <TestingPanel />
-                      <AdminDebugPanel />
+                      <AppContent />
                     </BrowserRouter>
                   </UserDataProvider>
                 </TestingProvider>

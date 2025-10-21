@@ -12,12 +12,12 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
-    // Load theme from localStorage or default to 'system'
+    // Load theme from localStorage or default to 'light'
     try {
       const savedTheme = localStorage.getItem('boltquest-theme') as Theme;
-      return savedTheme || 'system';
+      return savedTheme || 'light';
     } catch {
-      return 'system';
+      return 'light';
     }
   });
 

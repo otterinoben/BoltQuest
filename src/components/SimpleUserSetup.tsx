@@ -29,14 +29,49 @@ interface SimpleUserSetupProps {
   onComplete: () => void;
 }
 
-const AVATAR_COLORS = [
-  { name: "Custom Upload", value: "custom", bg: "bg-gradient-to-br from-gray-100 to-gray-200", icon: "📷" },
-  { name: "Blue", value: "#3b82f6", bg: "bg-blue-500" },
-  { name: "Green", value: "#10b981", bg: "bg-emerald-500" },
-  { name: "Purple", value: "#8b5cf6", bg: "bg-violet-500" },
-  { name: "Red", value: "#ef4444", bg: "bg-red-500" },
-  { name: "Orange", value: "#f97316", bg: "bg-orange-500" },
-  { name: "Pink", value: "#ec4899", bg: "bg-pink-500" },
+const AVATAR_OPTIONS = [
+  { 
+    name: "Custom Upload", 
+    value: "custom", 
+    bg: "bg-gradient-to-br from-gray-100 to-gray-200", 
+    icon: "📷",
+    type: "custom"
+  },
+  { 
+    name: "Explorer", 
+    value: "/assets/images/Explorer Avatar.png", 
+    bg: "bg-gradient-to-br from-blue-100 to-blue-200", 
+    icon: "🧭",
+    type: "image"
+  },
+  { 
+    name: "Growing", 
+    value: "/assets/images/Growing Avatar.png", 
+    bg: "bg-gradient-to-br from-green-100 to-green-200", 
+    icon: "🌱",
+    type: "image"
+  },
+  { 
+    name: "Light Bulb", 
+    value: "/assets/images/light bulb avatar.png", 
+    bg: "bg-gradient-to-br from-yellow-100 to-yellow-200", 
+    icon: "💡",
+    type: "image"
+  },
+  { 
+    name: "Owl", 
+    value: "/assets/images/Owl Avatar.png", 
+    bg: "bg-gradient-to-br from-purple-100 to-purple-200", 
+    icon: "🦉",
+    type: "image"
+  },
+  { 
+    name: "Student", 
+    value: "/assets/images/Student Avatar.png", 
+    bg: "bg-gradient-to-br from-indigo-100 to-indigo-200", 
+    icon: "🎓",
+    type: "image"
+  },
 ];
 
 const INTERESTS: { id: Category; label: string; icon: React.ReactNode }[] = [
@@ -48,7 +83,7 @@ const INTERESTS: { id: Category; label: string; icon: React.ReactNode }[] = [
 
 const SimpleUserSetup: React.FC<SimpleUserSetupProps> = ({ onComplete }) => {
   const [username, setUsername] = useState("");
-  const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_COLORS[0]);
+  const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_OPTIONS[0]);
   const [customImage, setCustomImage] = useState<string | null>(null);
   const [selectedInterests, setSelectedInterests] = useState<Category[]>([]);
   const [customInterests, setCustomInterests] = useState<string[]>([]);
@@ -91,7 +126,7 @@ const SimpleUserSetup: React.FC<SimpleUserSetupProps> = ({ onComplete }) => {
       reader.onload = (e) => {
         const result = e.target?.result as string;
         setCustomImage(result);
-        setSelectedAvatar(AVATAR_COLORS[0]); // Set to custom upload option
+        setSelectedAvatar(AVATAR_OPTIONS[0]); // Set to custom upload option
       };
       reader.readAsDataURL(file);
     }
@@ -213,24 +248,30 @@ const SimpleUserSetup: React.FC<SimpleUserSetupProps> = ({ onComplete }) => {
           <div className="space-y-3">
             <Label>Choose Your Avatar</Label>
             <div className="flex flex-wrap gap-2">
-              {AVATAR_COLORS.map((color) => (
-                <div key={color.name} className="relative">
+              {AVATAR_OPTIONS.map((avatar) => (
+                <div key={avatar.name} className="relative">
                   <button
                     onClick={() => {
-                      setSelectedAvatar(color);
-                      if (color.value !== 'custom') {
+                      setSelectedAvatar(avatar);
+                      if (avatar.value !== 'custom') {
                         setCustomImage(null);
                       }
                     }}
-                    className={`w-12 h-12 rounded-full ${color.bg} border-2 transition-all flex items-center justify-center ${
-                      selectedAvatar.value === color.value 
+                    className={`w-12 h-12 rounded-full ${avatar.bg} border-2 transition-all flex items-center justify-center overflow-hidden ${
+                      selectedAvatar.value === avatar.value 
                         ? 'border-primary ring-2 ring-primary/20' 
                         : 'border-transparent hover:border-primary/50'
                     }`}
-                    title={color.name}
+                    title={avatar.name}
                   >
-                    {color.value === 'custom' ? (
-                      <span className="text-lg">{color.icon}</span>
+                    {avatar.type === 'custom' ? (
+                      <span className="text-lg">{avatar.icon}</span>
+                    ) : avatar.type === 'image' ? (
+                      <img 
+                        src={avatar.value} 
+                        alt={avatar.name} 
+                        className="w-full h-full object-cover"
+                      />
                     ) : customImage && selectedAvatar.value === 'custom' ? (
                       <img 
                         src={customImage} 
@@ -239,7 +280,7 @@ const SimpleUserSetup: React.FC<SimpleUserSetupProps> = ({ onComplete }) => {
                       />
                     ) : null}
                   </button>
-                  {color.value === 'custom' && (
+                  {avatar.value === 'custom' && (
                     <input
                       type="file"
                       accept="image/*"

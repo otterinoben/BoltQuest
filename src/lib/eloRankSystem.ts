@@ -25,7 +25,7 @@ export class EloRankSystem {
       tier: "Iron",
       division: "IV",
       minElo: 0,
-      maxElo: 400,
+      maxElo: 640,
       color: "#8B4513",
       bgColor: "linear-gradient(135deg, #8B4513, #A0522D)",
       borderColor: "#654321",
@@ -35,8 +35,8 @@ export class EloRankSystem {
     {
       tier: "Iron",
       division: "III",
-      minElo: 400,
-      maxElo: 600,
+      minElo: 640,
+      maxElo: 960,
       color: "#8B4513",
       bgColor: "linear-gradient(135deg, #8B4513, #A0522D)",
       borderColor: "#654321",
@@ -46,8 +46,8 @@ export class EloRankSystem {
     {
       tier: "Iron",
       division: "II",
-      minElo: 600,
-      maxElo: 800,
+      minElo: 960,
+      maxElo: 1280,
       color: "#8B4513",
       bgColor: "linear-gradient(135deg, #8B4513, #A0522D)",
       borderColor: "#654321",
@@ -57,8 +57,8 @@ export class EloRankSystem {
     {
       tier: "Iron",
       division: "I",
-      minElo: 800,
-      maxElo: 1000,
+      minElo: 1280,
+      maxElo: 1600,
       color: "#8B4513",
       bgColor: "linear-gradient(135deg, #8B4513, #A0522D)",
       borderColor: "#654321",
@@ -70,8 +70,8 @@ export class EloRankSystem {
     {
       tier: "Bronze",
       division: "IV",
-      minElo: 1000,
-      maxElo: 1200,
+      minElo: 1600,
+      maxElo: 1920,
       color: "#CD7F32",
       bgColor: "linear-gradient(135deg, #CD7F32, #B8860B)",
       borderColor: "#8B4513",
@@ -81,8 +81,8 @@ export class EloRankSystem {
     {
       tier: "Bronze",
       division: "III",
-      minElo: 1200,
-      maxElo: 1400,
+      minElo: 1920,
+      maxElo: 2240,
       color: "#CD7F32",
       bgColor: "linear-gradient(135deg, #CD7F32, #B8860B)",
       borderColor: "#8B4513",
@@ -92,8 +92,8 @@ export class EloRankSystem {
     {
       tier: "Bronze",
       division: "II",
-      minElo: 1400,
-      maxElo: 1600,
+      minElo: 2240,
+      maxElo: 2560,
       color: "#CD7F32",
       bgColor: "linear-gradient(135deg, #CD7F32, #B8860B)",
       borderColor: "#8B4513",
@@ -103,8 +103,8 @@ export class EloRankSystem {
     {
       tier: "Bronze",
       division: "I",
-      minElo: 1600,
-      maxElo: 1800,
+      minElo: 2560,
+      maxElo: 2880,
       color: "#CD7F32",
       bgColor: "linear-gradient(135deg, #CD7F32, #B8860B)",
       borderColor: "#8B4513",
@@ -116,8 +116,8 @@ export class EloRankSystem {
     {
       tier: "Silver",
       division: "IV",
-      minElo: 1800,
-      maxElo: 2000,
+      minElo: 2880,
+      maxElo: 3200,
       color: "#C0C0C0",
       bgColor: "linear-gradient(135deg, #C0C0C0, #D3D3D3)",
       borderColor: "#A9A9A9",
@@ -127,8 +127,8 @@ export class EloRankSystem {
     {
       tier: "Silver",
       division: "III",
-      minElo: 2000,
-      maxElo: 2200,
+      minElo: 3200,
+      maxElo: 3520,
       color: "#C0C0C0",
       bgColor: "linear-gradient(135deg, #C0C0C0, #D3D3D3)",
       borderColor: "#A9A9A9",
@@ -138,8 +138,8 @@ export class EloRankSystem {
     {
       tier: "Silver",
       division: "II",
-      minElo: 2200,
-      maxElo: 2400,
+      minElo: 3520,
+      maxElo: 3840,
       color: "#C0C0C0",
       bgColor: "linear-gradient(135deg, #C0C0C0, #D3D3D3)",
       borderColor: "#A9A9A9",
@@ -149,8 +149,8 @@ export class EloRankSystem {
     {
       tier: "Silver",
       division: "I",
-      minElo: 2400,
-      maxElo: 2600,
+      minElo: 3840,
+      maxElo: 4160,
       color: "#C0C0C0",
       bgColor: "linear-gradient(135deg, #C0C0C0, #D3D3D3)",
       borderColor: "#A9A9A9",
@@ -162,8 +162,8 @@ export class EloRankSystem {
     {
       tier: "Gold",
       division: "IV",
-      minElo: 2600,
-      maxElo: 2800,
+      minElo: 4160,
+      maxElo: 4480,
       color: "#FFD700",
       bgColor: "linear-gradient(135deg, #FFD700, #FFA500)",
       borderColor: "#DAA520",
@@ -173,8 +173,8 @@ export class EloRankSystem {
     {
       tier: "Gold",
       division: "III",
-      minElo: 2800,
-      maxElo: 3000,
+      minElo: 4480,
+      maxElo: 4800,
       color: "#FFD700",
       bgColor: "linear-gradient(135deg, #FFD700, #FFA500)",
       borderColor: "#DAA520",
@@ -184,8 +184,8 @@ export class EloRankSystem {
     {
       tier: "Gold",
       division: "II",
-      minElo: 3000,
-      maxElo: 3200,
+      minElo: 4800,
+      maxElo: 5120,
       color: "#FFD700",
       bgColor: "linear-gradient(135deg, #FFD700, #FFA500)",
       borderColor: "#DAA520",
@@ -195,8 +195,8 @@ export class EloRankSystem {
     {
       tier: "Gold",
       division: "I",
-      minElo: 3200,
-      maxElo: 3400,
+      minElo: 5120,
+      maxElo: 5440,
       color: "#FFD700",
       bgColor: "linear-gradient(135deg, #FFD700, #FFA500)",
       borderColor: "#DAA520",
@@ -208,8 +208,8 @@ export class EloRankSystem {
     {
       tier: "Platinum",
       division: "IV",
-      minElo: 3400,
-      maxElo: 3600,
+      minElo: 5440,
+      maxElo: 5760,
       color: "#00CED1",
       bgColor: "linear-gradient(135deg, #00CED1, #20B2AA)",
       borderColor: "#008B8B",
@@ -219,8 +219,8 @@ export class EloRankSystem {
     {
       tier: "Platinum",
       division: "III",
-      minElo: 3600,
-      maxElo: 3800,
+      minElo: 5760,
+      maxElo: 6080,
       color: "#00CED1",
       bgColor: "linear-gradient(135deg, #00CED1, #20B2AA)",
       borderColor: "#008B8B",
@@ -230,8 +230,8 @@ export class EloRankSystem {
     {
       tier: "Platinum",
       division: "II",
-      minElo: 3800,
-      maxElo: 4000,
+      minElo: 6080,
+      maxElo: 6400,
       color: "#00CED1",
       bgColor: "linear-gradient(135deg, #00CED1, #20B2AA)",
       borderColor: "#008B8B",
@@ -241,8 +241,8 @@ export class EloRankSystem {
     {
       tier: "Platinum",
       division: "I",
-      minElo: 4000,
-      maxElo: 4200,
+      minElo: 6400,
+      maxElo: 6720,
       color: "#00CED1",
       bgColor: "linear-gradient(135deg, #00CED1, #20B2AA)",
       borderColor: "#008B8B",
@@ -254,8 +254,8 @@ export class EloRankSystem {
     {
       tier: "Diamond",
       division: "IV",
-      minElo: 4200,
-      maxElo: 4400,
+      minElo: 6720,
+      maxElo: 7040,
       color: "#B9F2FF",
       bgColor: "linear-gradient(135deg, #B9F2FF, #87CEEB)",
       borderColor: "#4682B4",
@@ -265,8 +265,8 @@ export class EloRankSystem {
     {
       tier: "Diamond",
       division: "III",
-      minElo: 4400,
-      maxElo: 4600,
+      minElo: 7040,
+      maxElo: 7360,
       color: "#B9F2FF",
       bgColor: "linear-gradient(135deg, #B9F2FF, #87CEEB)",
       borderColor: "#4682B4",
@@ -276,8 +276,8 @@ export class EloRankSystem {
     {
       tier: "Diamond",
       division: "II",
-      minElo: 4600,
-      maxElo: 4800,
+      minElo: 7360,
+      maxElo: 7680,
       color: "#B9F2FF",
       bgColor: "linear-gradient(135deg, #B9F2FF, #87CEEB)",
       borderColor: "#4682B4",
@@ -287,8 +287,8 @@ export class EloRankSystem {
     {
       tier: "Diamond",
       division: "I",
-      minElo: 4800,
-      maxElo: 5000,
+      minElo: 7680,
+      maxElo: 8000,
       color: "#B9F2FF",
       bgColor: "linear-gradient(135deg, #B9F2FF, #87CEEB)",
       borderColor: "#4682B4",
@@ -300,8 +300,8 @@ export class EloRankSystem {
     {
       tier: "Master",
       division: "",
-      minElo: 5000,
-      maxElo: 6000,
+      minElo: 8000,
+      maxElo: 9600,
       color: "#8A2BE2",
       bgColor: "linear-gradient(135deg, #8A2BE2, #9932CC)",
       borderColor: "#4B0082",
@@ -313,8 +313,8 @@ export class EloRankSystem {
     {
       tier: "Grandmaster",
       division: "",
-      minElo: 6000,
-      maxElo: 7000,
+      minElo: 9600,
+      maxElo: 11200,
       color: "#FF4500",
       bgColor: "linear-gradient(135deg, #FF4500, #FF6347)",
       borderColor: "#DC143C",
@@ -326,8 +326,8 @@ export class EloRankSystem {
     {
       tier: "Challenger",
       division: "",
-      minElo: 7000,
-      maxElo: 10000,
+      minElo: 11200,
+      maxElo: 16000,
       color: "#FF8C00",
       bgColor: "linear-gradient(135deg, #FF8C00, #FFA500, #FF6347)",
       borderColor: "#DAA520",
@@ -349,8 +349,8 @@ export class EloRankSystem {
     const lpInRank = ((currentElo - currentRank.minElo) / (currentRank.maxElo - currentRank.minElo)) * 100;
     const currentLP = Math.round(lpInRank);
     
-    // Calculate LP gain based on ELO change
-    const lpGain = Math.round((eloChange / (currentRank.maxElo - currentRank.minElo)) * 100);
+    // Calculate LP gain as direct 1:1 conversion with ELO change
+    const lpGain = Math.round(eloChange);
     
     // Calculate progress to next rank
     const progressToNext = nextRank ? 

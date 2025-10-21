@@ -18,6 +18,7 @@ import { LevelUpPopup } from '@/components/LevelUpPopup';
 import { addXp, getUserLevelProgress, getLevelData, calculateXpReward } from '@/lib/dailyTaskLeveling';
 import { useAudio } from '@/contexts/AudioContext';
 import { GameOverScreen } from '@/components/game/GameOverScreen';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   createQuestionPool,
   RandomizedQuestion,
@@ -71,6 +72,10 @@ const Game = () => {
 
   // Game state
   const [showGameOver, setShowGameOver] = useState(false);
+  const [gameEndedByTime, setGameEndedByTime] = useState(false);
+  const [showGameOverPhase, setShowGameOverPhase] = useState<'game-over' | 'complete'>('complete');
+  const [showGameOverOverlay, setShowGameOverOverlay] = useState(false);
+  const [usedQuestions, setUsedQuestions] = useState<RandomizedQuestion[]>([]); // Store questions actually used
   const [gameState, setGameState] = useState<GameState>({
     currentQuestion: 0,
     score: 0,
@@ -131,7 +136,7 @@ const Game = () => {
   }, [userPreferences.autoPause, gameState.isPaused, showGameOver]);
 
   const questions = mockQuestions[category][difficulty];
-  const totalQuestions = questions.length;
+  const totalQuestions = questions?.length || 0;
 
   // Handle hint usage
   const handleHint = () => {
@@ -145,6 +150,10 @@ const Game = () => {
 
   // Generate hint for current question
   const generateHint = (question: any) => {
+    if (!question || !question.buzzword) {
+      return "Think carefully about each option and eliminate obviously incorrect answers.";
+    }
+
     const hints = [
       `Think about what "${question.buzzword}" might mean in ${category} context`,
       `Consider the length and complexity of each option`,
@@ -173,7 +182,7 @@ const Game = () => {
   };
 
   // Initialize question pool with randomization
-  const [questionPool] = useState(() => createQuestionPool(questions, DEFAULT_RANDOMIZATION_CONFIG));
+  const [questionPool, setQuestionPool] = useState(() => createQuestionPool(questions, DEFAULT_RANDOMIZATION_CONFIG));
   const [randomizedQuestions, setRandomizedQuestions] = useState<RandomizedQuestion[]>([]);
   const [currentRandomizedQuestion, setCurrentRandomizedQuestion] = useState<RandomizedQuestion | null>(null);
 
@@ -202,11 +211,32 @@ const Game = () => {
 
   // Initialize randomized questions on component mount
   useEffect(() => {
+    console.log('🔄 INITIALIZING RANDOMIZED QUESTIONS');
+    console.log('  questionPool exists:', questionPool !== undefined);
+    console.log('  totalQuestions:', totalQuestions);
+    console.log('  questionPool.getStats():', questionPool?.getStats());
+    console.log('  useEffect triggered by:', { questionPool: !!questionPool, totalQuestions });
+    
+    // Don't initialize if we don't have questions
+    if (!questionPool || totalQuestions === 0) {
+      console.log('  ❌ Skipping initialization - no question pool or questions');
+      return;
+    }
+    
     const initializeQuestions = () => {
       const randomized = [];
-      for (let i = 0; i < Math.min(totalQuestions, 20); i++) {
-        randomized.push(questionPool.getNextQuestion());
+      const questionsToGenerate = Math.min(totalQuestions, 20);
+      console.log('  Generating', questionsToGenerate, 'randomized questions');
+      
+      for (let i = 0; i < questionsToGenerate; i++) {
+        const nextQuestion = questionPool.getNextQuestion();
+        console.log(`  Question ${i}:`, nextQuestion?.buzzword || 'null');
+        randomized.push(nextQuestion);
       }
+      
+      console.log('  Generated randomized questions:', randomized.length);
+      console.log('  First question:', randomized[0]?.buzzword || 'null');
+      
       setRandomizedQuestions(randomized);
       setCurrentRandomizedQuestion(randomized[0] || null);
     };
@@ -250,7 +280,7 @@ const Game = () => {
       // Pause/Resume with Space key
       if (event.key === ' ' && !showFeedback) {
         event.preventDefault();
-        handlePause();
+          handlePause();
       }
 
       // Quit game with Escape key
@@ -269,7 +299,9 @@ const Game = () => {
       const timer = setInterval(() => {
         setGameState((prev) => {
           if (prev.timeRemaining <= 1) {
-            endGame();
+            setGameEndedByTime(true);
+            setShowGameOverOverlay(true);
+            // Don't call endGame() immediately, let the overlay show first
             return prev;
           }
           return { ...prev, timeRemaining: prev.timeRemaining - 1 };
@@ -280,10 +312,41 @@ const Game = () => {
     }
   }, [mode, showGameOver, gameState.isPaused]);
 
-  const currentQuestion = currentRandomizedQuestion || questions[gameState.currentQuestion % questions.length];
+  // Handle game over overlay timing
+  useEffect(() => {
+    if (showGameOverOverlay && gameEndedByTime) {
+      // Call endGame() immediately to prepare the results screen underneath
+      endGame();
+      setShowGameOverPhase('complete');
+      
+      const timer = setTimeout(() => {
+        setShowGameOverOverlay(false); // Just hide the overlay to reveal results underneath
+      }, 1500); // Show "GAME OVER" overlay for 1.5 seconds, then reveal results
+      
+      return () => clearTimeout(timer);
+    }
+  }, [showGameOverOverlay, gameEndedByTime]);
+
+  const currentQuestion = currentRandomizedQuestion || (questions && questions.length > 0 ? questions[gameState.currentQuestion % questions.length] : null) || null;
+  
+  // Debug currentQuestion
+  if (gameState.currentQuestion === 0) {
+    console.log('🎯 CURRENT QUESTION DEBUG (Question 0):');
+    console.log('  currentRandomizedQuestion:', currentRandomizedQuestion?.buzzword || 'null');
+    console.log('  questions exists:', questions !== undefined);
+    console.log('  questions.length:', questions?.length || 0);
+    console.log('  gameState.currentQuestion:', gameState.currentQuestion);
+    console.log('  randomizedQuestions.length:', randomizedQuestions.length);
+    console.log('  final currentQuestion:', currentQuestion?.buzzword || 'null');
+    
+    if (!currentQuestion) {
+      console.log('  ❌ CRITICAL: No current question available!');
+      console.log('  This will cause the game to show no questions.');
+    }
+  }
 
   const handleAnswer = (answerIndex: number) => {
-    if (showFeedback) return;
+    if (showFeedback || !currentQuestion) return;
     
     setSelectedAnswer(answerIndex);
     const correct = answerIndex === currentQuestion.correctAnswer;
@@ -296,26 +359,29 @@ const Game = () => {
     const newCombo = correct ? gameState.combo + 1 : 0;
     
     setGameState((prev) => {
-      const timeAdjustment = (mode === "quick" || mode === "classic") ? (correct ? 3 : -5) : 0;
+    const timeAdjustment = (mode === "quick" || mode === "classic") ? (correct ? 3 : -5) : 0;
         const newTime = Math.max(0, prev.timeRemaining + timeAdjustment);
         
         // Show penalty animations
-        if (timeAdjustment > 0) {
-          showPenaltyAnimation('time', timeAdjustment);
-        } else if (timeAdjustment < 0) {
-          showPenaltyAnimation('time', timeAdjustment);
-        }
-        
-        return {
-          ...prev,
+    if (timeAdjustment > 0) {
+      showPenaltyAnimation('time', timeAdjustment);
+    } else if (timeAdjustment < 0) {
+      showPenaltyAnimation('time', timeAdjustment);
+    }
+      
+      return {
+        ...prev,
           score: prev.score + scoreGain,
           combo: newCombo,
         timeRemaining: newTime,
         answers: [...prev.answers, answerIndex],
           questionsAnswered: prev.questionsAnswered + 1,
-        };
-      });
-      
+      };
+    });
+    
+    // Store the question that was actually used
+    setUsedQuestions(prev => [...prev, currentQuestion]);
+    
     if (newCombo > longestCombo) {
       setLongestCombo(newCombo);
     }
@@ -359,7 +425,6 @@ const Game = () => {
   const handleSkip = () => {
     if (showFeedback || gameState.isPaused) return;
 
-    const skipPenalty = 1; // 1 point penalty for skipping
     const timePenalty = (mode === "quick" || mode === "classic") ? 5 : 0; // 5 seconds penalty in quick/classic mode
     
     setSkipCount(prev => prev + 1);
@@ -369,21 +434,18 @@ const Game = () => {
     if (timePenalty > 0) {
       showPenaltyAnimation('time', -timePenalty);
     }
-    if (skipPenalty > 0) {
-      showPenaltyAnimation('score', -skipPenalty);
-    }
     
     setGameState((prev) => ({
       ...prev,
       questionsSkipped: prev.questionsSkipped + 1,
-      skipPenalty: prev.skipPenalty + skipPenalty,
-      score: Math.max(0, prev.score - skipPenalty),
       timeRemaining: Math.max(0, prev.timeRemaining - timePenalty),
       currentQuestion: prev.currentQuestion + 1,
+      // Don't reduce score - skipping doesn't lose points
+      // Don't add skip penalty - skipping affects accuracy, not score
     }));
 
     toast.warning("Question Skipped", {
-      description: `-${skipPenalty} point${timePenalty > 0 ? ` • -${timePenalty}s` : ''} • Counts as incorrect`,
+      description: `Skipped • Affects accuracy${timePenalty > 0 ? ` • -${timePenalty}s` : ''}`,
       style: {
         background: '#f59e0b', // Amber background
         color: 'white',
@@ -438,6 +500,7 @@ const Game = () => {
   const endGame = () => {
     // Calculate final statistics
     const correctAnswers = gameState.answers.filter((answer, index) => {
+      if (!questions || questions.length === 0) return false;
       const question = questions[index % questions.length];
       return answer === question.correctAnswer;
     }).length;
@@ -449,7 +512,7 @@ const Game = () => {
     
     const totalTimeSpent = mode === "quick" 
       ? (totalTime - gameState.timeRemaining) * 1000 
-      : Date.now() - gameState.startTime.getTime();
+      : gameState.startTime ? Date.now() - gameState.startTime.getTime() : 0;
     
     const finalPauseTime = gameState.isPaused && gameState.pauseStartTime
       ? gameState.totalPauseTime + (Date.now() - gameState.pauseStartTime.getTime())
@@ -523,7 +586,7 @@ const Game = () => {
         mode,
         accuracy,
         timeRemaining: gameState.timeRemaining,
-        duration: Math.floor((Date.now() - gameState.startTime.getTime()) / 1000),
+        duration: gameState.startTime ? Math.floor((Date.now() - gameState.startTime.getTime()) / 1000) : 0,
         skipCount: skipCount,
         pauseCount: pauseCount,
         luckyStreak: luckyStreak,
@@ -609,33 +672,217 @@ const Game = () => {
       ? "text-warning"
       : "text-destructive";
 
-  const correctAnswers = gameState.answers.filter(
-    (ans, idx) => ans === questions[idx]?.correctAnswer
-  ).length;
-  const totalQuestionsAttempted = gameState.answers.length + gameState.questionsSkipped;
-  const accuracy = totalQuestionsAttempted > 0 
-    ? Math.round((correctAnswers / totalQuestionsAttempted) * 100) 
-    : 0;
-
   if (showGameOver) {
+    // Calculate accuracy only when game is over
+  const correctAnswers = gameState.answers.filter(
+      (ans, idx) => ans === usedQuestions[idx]?.correctAnswer
+  ).length;
+    const totalQuestionsAnswered = gameState.answers.length; // Only count actually answered questions
+    const accuracy = totalQuestionsAnswered > 0 
+      ? Math.round((correctAnswers / totalQuestionsAnswered) * 100) 
+      : 0;
+
+    // Detailed debug logging
+    console.log('🎯 DETAILED ACCURACY DEBUG:');
+    console.log('  gameState.answers:', gameState.answers);
+    console.log('  gameState.questionsAnswered:', gameState.questionsAnswered);
+    console.log('  gameState.questionsSkipped:', gameState.questionsSkipped);
+    console.log('  gameState.score:', gameState.score);
+    console.log('  answers.length:', gameState.answers.length);
+    console.log('  correctAnswers:', correctAnswers);
+    console.log('  totalQuestionsAnswered:', totalQuestionsAnswered);
+    console.log('  calculated accuracy:', accuracy);
+    console.log('  questions array length:', questions?.length || 0);
+    
+    // Check each answer individually
+    gameState.answers.forEach((answer, idx) => {
+      if (!questions || questions.length === 0) return;
+      const question = usedQuestions[idx];
+      const isCorrect = answer === question?.correctAnswer;
+      console.log(`  Question ${idx}: Answer ${answer}, Correct ${question?.correctAnswer}, ${isCorrect ? '✓' : '✗'}`);
+    });
     return (
-      <GameOverScreen
-        gameOverPhase="complete"
-        gameState={gameState}
-        mode={mode}
-        category={category}
-        difficulty={difficulty}
-        accuracy={accuracy}
-        longestCombo={longestCombo}
-        consecutiveStats={consecutiveStats}
-        totalTime={totalTime}
-      />
+      <div className="relative">
+        {/* Results Screen - Always rendered when showGameOver is true */}
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+        >
+          <GameOverScreen
+            gameOverPhase={showGameOverPhase}
+            gameState={gameState}
+            mode={mode}
+            category={category}
+            difficulty={difficulty}
+            accuracy={accuracy}
+            correctAnswers={correctAnswers}
+            longestCombo={longestCombo}
+            consecutiveStats={consecutiveStats}
+            totalTime={totalTime}
+            onAutoReplay={() => {
+              console.log('🔄 AUTO-REPLAY TRIGGERED');
+              console.log('  category:', category);
+              console.log('  difficulty:', difficulty);
+              console.log('  questions exists:', questions !== undefined);
+              console.log('  questions.length:', questions?.length || 0);
+              console.log('  mockQuestions exists:', mockQuestions !== undefined);
+              console.log('  mockQuestions[category] exists:', mockQuestions[category] !== undefined);
+              console.log('  mockQuestions[category][difficulty] exists:', mockQuestions[category]?.[difficulty] !== undefined);
+              
+              // Auto-replay: restart with same settings
+              setGameState({
+                score: 0,
+                answers: [],
+                questionsAnswered: 0,
+                questionsSkipped: 0,
+                timeRemaining: totalTime,
+                currentQuestionIndex: 0,
+                longestCombo: 0,
+                isPaused: false,
+                startTime: new Date(), // ✅ Add missing startTime
+                pauseStartTime: undefined,
+                totalPauseTime: 0,
+                skipPenalty: 0,
+                combo: 0,
+                currentQuestion: 0,
+              });
+
+              // Reset question pool for new game
+              console.log('  Creating new question pool...');
+              console.log('  questions array:', questions);
+              console.log('  questions length:', questions?.length);
+              
+              if (!questions || questions.length === 0) {
+                console.log('  ❌ ERROR: No questions available for pool creation!');
+                return;
+              }
+              
+              const newQuestionPool = createQuestionPool(questions, DEFAULT_RANDOMIZATION_CONFIG);
+              newQuestionPool.reset(); // Ensure pool starts fresh
+              console.log('  New question pool created:', newQuestionPool);
+              console.log('  Pool stats:', newQuestionPool.getStats());
+              
+              // Test getting a question immediately
+              const testQuestion = newQuestionPool.getNextQuestion();
+              console.log('  Test question from pool:', testQuestion?.buzzword || 'null');
+              
+              setQuestionPool(newQuestionPool);
+
+              // Reset UI state
+              setShowGameOver(false);
+              setShowGameOverPhase('game-over');
+              setShowGameOverOverlay(false);
+              setGameEndedByTime(false);
+
+              // Reset question-related state
+              setUsedQuestions([]);
+              setRandomizedQuestions([]);
+              setCurrentRandomizedQuestion(null);
+              setSelectedAnswer(null);
+              setShowFeedback(false);
+              setIsCorrect(false);
+              setAnswerStartTime(Date.now());
+              setLongestCombo(0);
+
+              // Reset hint state
+              resetHintState();
+              
+              console.log('✅ Auto-replay reset complete');
+              
+              // Force a small delay to ensure state updates complete
+              setTimeout(() => {
+                console.log('🔄 State update delay complete - triggering re-render');
+                
+                // Emergency fallback: if no questions are loaded after delay, force initialization
+                setTimeout(() => {
+                  if (randomizedQuestions.length === 0 && questions && questions.length > 0) {
+                    console.log('🚨 EMERGENCY FALLBACK: Force initializing questions');
+                    const emergencyQuestions = [];
+                    for (let i = 0; i < Math.min(questions.length, 20); i++) {
+                      emergencyQuestions.push(questions[i]);
+                    }
+                    setRandomizedQuestions(emergencyQuestions);
+                    setCurrentRandomizedQuestion(emergencyQuestions[0] || null);
+                    console.log('🚨 Emergency questions loaded:', emergencyQuestions.length);
+                  }
+                }, 200);
+              }, 100);
+            }}
+          />
+        </motion.div>
+
+        {/* Game Over Overlay - Falls down to reveal results underneath */}
+        <AnimatePresence>
+          {showGameOverOverlay && (
+            <motion.div 
+              className="absolute inset-0 bg-black/80 flex items-center justify-center z-50"
+              initial={{ y: -window.innerHeight, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ 
+                y: window.innerHeight, 
+                opacity: 0,
+                transition: {
+                  duration: 1.2,
+                  ease: "easeInOut"
+                }
+              }}
+              transition={{ 
+                type: "spring", 
+                damping: 20, 
+                stiffness: 100,
+                duration: 0.8
+              }}
+              onAnimationComplete={(definition) => {
+                if (definition === "exit") {
+                  // Ensure the overlay is completely gone before showing results
+                  console.log("Overlay exit animation completed");
+                }
+              }}
+            >
+              <motion.div 
+                className="text-center space-y-4"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.3, duration: 0.5 }}
+              >
+                <motion.div 
+                  className="text-8xl font-black text-white"
+                  animate={{ 
+                    scale: [1, 1.05, 1],
+                    textShadow: [
+                      "0 0 0px rgba(255,255,255,0)",
+                      "0 0 20px rgba(255,255,255,0.5)",
+                      "0 0 0px rgba(255,255,255,0)"
+                    ]
+                  }}
+                  transition={{ 
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                >
+                  GAME OVER
+                </motion.div>
+                <motion.div 
+                  className="text-2xl text-white/80 font-medium"
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.5, duration: 0.4 }}
+                >
+                  Time's up!
+                </motion.div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     );
   }
 
   return (
-    <div className="min-h-screen p-6 md:p-8 flex items-center justify-center animate-fade-in">
-      <div className="w-full max-w-4xl space-y-6">
+    <div className="min-h-screen p-2 sm:p-4 md:p-6 flex items-center justify-center animate-fade-in">
+      <div className="w-full max-w-4xl space-y-4 sm:space-y-6">
         {/* Debug Panel - Randomization Analytics (only in development) */}
         {process.env.NODE_ENV === 'development' && (
           <Card className="border-yellow-200 bg-yellow-50">
@@ -694,7 +941,7 @@ const Game = () => {
                 <Trophy className="h-5 w-5 mx-auto mb-1 text-gray-600" />
                 <div className="text-xl font-bold text-gray-900">
                 {gameState.score}
-            </div>
+              </div>
                 <p className="text-xs text-gray-500">Score</p>
               </CardContent>
             </Card>
@@ -708,7 +955,7 @@ const Game = () => {
                 <p className="text-xs text-gray-500">Combo</p>
               </CardContent>
             </Card>
-        </div>
+            </div>
 
           {/* Big Time Display - Below Score and Combo */}
           <div className="text-center">
@@ -767,14 +1014,16 @@ const Game = () => {
           </div>
         )}
 
-            <div className="mb-8">
-              <h2 className="text-3xl font-bold text-foreground mb-4">
+            {currentQuestion && (
+              <div className="mb-8">
+                <h2 className="text-3xl font-bold text-foreground mb-4">
                 {currentQuestion.buzzword}
               </h2>
-              <p className="text-lg text-muted-foreground">
+                <p className="text-lg text-muted-foreground">
                 What does this buzzword mean?
               </p>
             </div>
+            )}
 
             {/* Hint Section */}
             {userPreferences.hintsEnabled && (
@@ -809,7 +1058,8 @@ const Game = () => {
               </div>
             )}
 
-            <div className="grid grid-cols-1 gap-3">
+            {currentQuestion && (
+              <div className="grid grid-cols-1 gap-3">
               {currentQuestion.options.map((option, index) => {
                 const isSelected = selectedAnswer === index;
                 const isCorrectAnswer = index === currentQuestion.correctAnswer;
@@ -830,10 +1080,17 @@ const Game = () => {
                         ? "bg-red-500 border-red-500 text-white hover:bg-red-500 animate-incorrect-answer"
                         : gameState.isPaused
                         ? "opacity-50 cursor-not-allowed bg-gray-100 border-gray-200"
+                        : isCorrectAnswer
+                        ? "bg-blue-50 border-blue-300 text-blue-900 hover:bg-blue-100 hover:border-blue-400 ring-2 ring-blue-200" // Highlight correct answer
                         : "bg-white border-gray-300 text-gray-900 hover:bg-gray-50 hover:border-gray-400"
                     }`}
                   >
                     <span className="flex-1 text-sm">{option}</span>
+                    {isCorrectAnswer && !showFeedback && (
+                      <div className="h-5 w-5 bg-blue-500 rounded-full flex items-center justify-center ml-2 flex-shrink-0">
+                        <span className="text-white text-xs font-bold">✓</span>
+                      </div>
+                    )}
                     {showCorrect && (
                       <CheckCircle2 className="h-5 w-5 text-white ml-2 flex-shrink-0" />
                     )}
@@ -844,6 +1101,7 @@ const Game = () => {
                 );
               })}
             </div>
+            )}
 
             {/* Game Control Buttons - Clean & Sleek */}
             <div className="flex gap-3 justify-center mt-8">
@@ -859,8 +1117,8 @@ const Game = () => {
                 <Badge variant="secondary" className="ml-2 bg-gray-700 text-white text-xs px-1.5 py-0.5">S</Badge>
           </Button>
               
-          <Button
-            variant="outline"
+              <Button
+                variant="outline"
                 size="sm"
             onClick={handlePause}
                 disabled={showFeedback}
@@ -879,7 +1137,7 @@ const Game = () => {
                     <Badge variant="secondary" className="ml-2 bg-gray-700 text-white text-xs px-1.5 py-0.5">Space</Badge>
               </>
             )}
-          </Button>
+              </Button>
               
               <Button
                 variant="outline"
